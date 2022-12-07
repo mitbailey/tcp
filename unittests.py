@@ -189,7 +189,7 @@ def test_many_packet_tx_rx():
     data, to = net2.pop_data()
     to = False
     while to is False:
-        d, to = net2.pop_data()
+        d, to = net2.pop_data(timeout=0.5)
         if d is not None:
             data += d
 
@@ -222,7 +222,7 @@ def test_file_tx_rx():
     data, to = fnet2.pop_data()
     to = False
     while to is False:
-        d, to = fnet2.pop_data()
+        d, to = fnet2.pop_data(timeout=0.5)
         if d is not None:
             data += d
         # print(d)
@@ -258,7 +258,7 @@ def test_big_file_tx_rx():
     data, to = net2.pop_data()
     to = False
     while to is False:
-        d, to = net2.pop_data()
+        d, to = net2.pop_data(timeout=0.5)
         if d is not None:
             data += d
         # print(d)
