@@ -19,8 +19,8 @@ class TCPNet:
     MAX_DATA_SIZE = 1000
     DEFAULT_TIMEOUT = 2
 
-    def __init__(self, source_port: int, dest_ip: str, dest_port: int):
-        self.whois = 'RECV'
+    def __init__(self, ID: str, source_port: int, dest_ip: str, dest_port: int):
+        self.whois = ID
 
         self.done = False
         self.rx_buffer = collections.deque()
@@ -37,7 +37,6 @@ class TCPNet:
         self.done = True
         if self.rx_tid_started:
             self.rx_tid.join()
-
 
     def _setup(self, source_port: int, dest_ip: str, dest_port: int):
         self.sent_pkts = 0
@@ -58,6 +57,7 @@ class TCPNet:
         self.curr_seq_num = 0
         self.last_rxed_ack_num = 0
         self.last_rxed_seq_num = 0
+
         self.handshake_begun = False
         self.handshake_complete = False
 
@@ -65,19 +65,35 @@ class TCPNet:
         self.rx_tid.start()
 
     def send(self, send_data: bytes):
-        self.whois = 'SEND'
         if self.handshake_complete:
             print('Cannot begin a new stream while another is active.')
             return False
         self.send_data = send_data
+        # self._handshake()
 
-    def _handshake(self):
-        self.handshake_begun = True
-        self._handshake_syn()
+    def _handshake(self, flags = 0):
+        if self.handshake_complete:
+            return
+
+        if flags == 0b0 and not self.handshake_begun:
+            print('1')
+            self._handshake_syn()
+        elif flags == 0b000010: # SYN
+            self.handshake_begun = True
+            print(self.whois, 'Got SYN.')
+            self._handshake_syn_ack()
+        elif flags == 0b010010: # SYN-ACK
+            self.handshake_begun = True
+            print(self.whois, 'Got SYN-ACK.')
+            self._handshake_ack()
+        elif flags == 0b010000:
+            print(self.whois, 'Got ACK.')
+            self.handshake_complete = True 
+            print(self.whois, 'HANDSHAKE COMPLETED')
 
     # CLIENT STEP 1 (Part 1)
     def _handshake_syn(self):
-        print(self.whois, '_handshake_syn')
+        print(self.whois, 'Sending SYN')
         self.curr_seq_num = 1
         self.curr_ack_num = 0
         syn_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000010)) # 2
@@ -85,7 +101,7 @@ class TCPNet:
 
     # SERVER STEP 1 (Part 2)
     def _handshake_syn_ack(self):
-        print(self.whois, '_handshake_syn_ack')
+        print(self.whois, 'Sending SYN-ACK')
         self.curr_seq_num = 2
         self.curr_ack_num = self.last_rxed_seq_num + 1
         syn_ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010010)) # 18
@@ -93,12 +109,12 @@ class TCPNet:
 
     # CLIENT STEP 2 (Part 3)
     def _handshake_ack(self):
-        print(self.whois, '_handshake_ack')
+        print(self.whois, 'Sending ACK')
         self.curr_seq_num = self.last_rxed_ack_num
         self.curr_ack_num = self.last_rxed_seq_num + 1
         ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010000)) # 16
-        self.handshake_begun = False
         self.handshake_complete = True
+        print(self.whois, 'HANDSHAKE COMPLETE')
         self._udt_send(ack_pkt)
 
     def _teardown(self):
@@ -113,23 +129,23 @@ class TCPNet:
         self.udp_sock.settimeout(duration)
 
     def make_pkt(self, seq_num: int, ack_num: int, data: bytes):
-        pkt: bytearray = bytearray(self.make_hdr(seq_num, self.bit16sum(data)) + data)
+        pkt: bytearray = bytearray(self.make_hdr(seq_num, int.from_bytes(self.bit16sum(data), 'big')) + data)
         return pkt
 
     def make_hdr(self, seq_num: int, ack_num: int, checksum: bytes = 0x0, flags: int = 0b00000000):
         hdr_len = 0 # Header length = Header length field value x 4 bytes
         urg_ptr = 0
 
-        # print(type(self.DEST_IP))
-        # print(type(self.SOURCE_PORT))
-        # print(type(self.DEST_PORT))
-        # print(type(seq_num))
-        # print(type(ack_num))
-        # print(type(hdr_len))
-        # print(type(flags))
-        # print(type(self.rx_win_size))
-        # print(type(checksum))
-        # print(type(urg_ptr))
+        # print('dest ip', type(self.DEST_IP))
+        # print('source port', type(self.SOURCE_PORT))
+        # print('dest port', type(self.DEST_PORT))
+        # print('seq num', type(seq_num))
+        # print('ack num', type(ack_num))
+        # print('hdr len', type(hdr_len))
+        # print('flags', type(flags))
+        # print('rx win size', type(self.rx_win_size))
+        # print('checksum', type(checksum))
+        # print('urg ptr', type(urg_ptr))
 
         header: bytearray = bytearray(self.SOURCE_PORT.to_bytes(2, 'big') + self.DEST_PORT.to_bytes(2, 'big') + seq_num.to_bytes(4, 'big') + ack_num.to_bytes(4, 'big') + hdr_len.to_bytes(1, 'big') + flags.to_bytes(1, 'big') + self.rx_win_size.to_bytes(2, 'big') + checksum.to_bytes(2, 'big') + urg_ptr.to_bytes(2, 'big'))
 
@@ -173,10 +189,11 @@ class TCPNet:
             timedout = False
 
             src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, data, force_close, timedout = self._tcp_recv()
+            if timedout and self.done:
+                break
             if dest_port == self.DEST_PORT:
                 print(self.whois, 'Ignored!')
                 continue
-            print(self.whois, src_port, dest_port, seq_num, ack_num, flags, self.handshake_complete)
 
             if seq_num is not None:
                 self.last_rxed_seq_num = seq_num
@@ -184,18 +201,11 @@ class TCPNet:
                 self.last_rxed_ack_num = ack_num
 
             if not self.handshake_complete:
-                if not self.handshake_begun:
-                    self._handshake()
-                elif flags == 0b000010: # SYN
-                    print(self.whois, 'Got SYN.')
-                    self._handshake_syn_ack()
-                elif flags == 0b010010: # SYN-ACK
-                    print(self.whois, 'Got SYN-ACK.')
-                    self._handshake_ack()
-                elif flags == 0b010000:
-                    print(self.whois, 'Got ACK.')
-                    self.handshake_begun = False
-                    self.handshake_complete = True 
+                if flags is None:
+                    flags = 0
+                print('done?', self.done)
+                print('2')
+                self._handshake(flags)
 
             elif not self.send_tid_active and self.send_data is not None:
                 self.send_tid_active = True

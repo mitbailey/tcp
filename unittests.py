@@ -13,18 +13,21 @@ import time
 
 def test_instantiation():
     pts = 0
-    net = tcpnet.TCPNet(52042, 'localhost', 52043)
+    net = tcpnet.TCPNet('A', 52040, 'localhost', 52041)
     if net is not None:
         pts += 1
+
+    net.done = True
     del net
+
     pts += 1
     return pts == 2
 
 def test_single_byte_tx_rx():
     print('Single Byte TX & RX:', end='\n')
     
-    net1 = tcpnet.TCPNet(52042, 'localhost', 52043)
-    net2 = tcpnet.TCPNet(52043, 'localhost', 52042)
+    net1 = tcpnet.TCPNet('Sender', 52042, 'localhost', 52043)
+    net2 = tcpnet.TCPNet('Receiver', 52043, 'localhost', 52042)
 
     net1.send(b'c')
 
@@ -41,6 +44,8 @@ if __name__ == '__main__':
         print('FAILURE')
         exit(1)
     time.sleep(2)
-
+    print('\n\n\n')
 
     test_single_byte_tx_rx()
+
+    print('Complete.')
