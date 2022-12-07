@@ -16,7 +16,7 @@ def test_instantiation():
     id = random.randint(10000, 99999)
     pts = 0
     net = tcpnet.TCPNet('A %d'%(id), 52040, 'localhost', 52041)
-    print('ID #%d'%(id))
+    # print('ID #%d'%(id))
     if net is not None:
         pts += 1
 
@@ -30,7 +30,7 @@ def test_single_byte_tx_rx():
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
-    print('ID #%d'%(id))
+    # print('ID #%d'%(id))
 
     sendable = b'a'
     net1.send(sendable)
@@ -38,7 +38,7 @@ def test_single_byte_tx_rx():
     # print('Waiting for data...')
     data, _ = net2.pop_data()
     
-    print(data)
+    # print(data)
 
     net1.done = True
     net2.done = True
@@ -51,7 +51,7 @@ def test_multi_byte_tx_rx():
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
-    print('ID #%d'%(id))
+    # print('ID #%d'%(id))
 
     sendable = b'abcdefg'
     net1.send(sendable)
@@ -59,7 +59,7 @@ def test_multi_byte_tx_rx():
     # print('Waiting for data...')
     data, _ = net2.pop_data()
     
-    print(data)
+    # print(data)
 
     net1.done = True
     net2.done = True
@@ -72,7 +72,7 @@ def test_multi_byte_delay_tx_rx():
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
-    print('ID #%d'%(id))
+    # print('ID #%d'%(id))
 
     sendable = b'abcdefg'
     time.sleep(1)
@@ -94,7 +94,7 @@ def test_single_packet_tx_rx():
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
-    print('ID #%d'%(id))
+    # print('ID #%d'%(id))
 
     sendable: bytearray = b''
     # for i in range(tcpnet.TCPNet.MAX_DATA_SIZE * 2):
@@ -128,7 +128,7 @@ def test_multi_packet_tx_rx():
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
-    print('ID #%d'%(id))
+    # print('ID #%d'%(id))
 
     sendable: bytearray = b''
     # for i in range(tcpnet.TCPNet.MAX_DATA_SIZE * 2):
@@ -164,7 +164,7 @@ def test_many_packet_tx_rx():
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
-    print('ID #%d'%(id))
+    # print('ID #%d'%(id))
 
     sendable: bytearray = b''
     # for i in range(tcpnet.TCPNet.MAX_DATA_SIZE * 2):
@@ -211,7 +211,7 @@ def test_file_tx_rx():
     id = random.randint(10000, 99999)
     fnet1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     fnet2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
-    print('ID #%d'%(id))
+    # print('ID #%d'%(id))
 
     file = open('smpte.bmp', 'rb')
     sendable = file.read()
@@ -247,7 +247,7 @@ def test_big_file_tx_rx():
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
-    print('ID #%d'%(id))
+    # print('ID #%d'%(id))
 
     file = open('card.bmp', 'rb')
     sendable = file.read()

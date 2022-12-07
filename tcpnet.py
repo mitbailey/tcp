@@ -95,21 +95,21 @@ class TCPNet:
             self._handshake_syn()
         elif flags == 0b000010: # SYN
             self.handshake_begun = True
-            print(self.whois, 'Got SYN.', self.last_rxed_seq_num, self.last_rxed_ack_num)
+            # print(self.whois, 'Got SYN.', self.last_rxed_seq_num, self.last_rxed_ack_num)
             self._handshake_syn_ack()
         elif flags == 0b010010: # SYN-ACK
             self.handshake_begun = True
-            print(self.whois, 'Got SYN-ACK.', self.last_rxed_seq_num, self.last_rxed_ack_num)
+            # print(self.whois, 'Got SYN-ACK.', self.last_rxed_seq_num, self.last_rxed_ack_num)
             self._handshake_ack()
         elif flags == 0b010000:
-            print(self.whois, 'Got ACK.', self.last_rxed_seq_num, self.last_rxed_ack_num)
+            # print(self.whois, 'Got ACK.', self.last_rxed_seq_num, self.last_rxed_ack_num)
             if self.sent_syn_ack:
                 self.handshake_complete = True 
-                print(self.whois, 'HANDSHAKE COMPLETED', self.last_rxed_seq_num, self.last_rxed_ack_num)
+                # print(self.whois, 'HANDSHAKE COMPLETED', self.last_rxed_seq_num, self.last_rxed_ack_num)
 
     # CLIENT STEP 1 (Part 1)
     def _handshake_syn(self):
-        print(self.whois, 'Sending SYN')
+        # print(self.whois, 'Sending SYN')
         self.sent_syn = True
         self.curr_seq_num = 1
         self.curr_ack_num = 0
@@ -118,7 +118,7 @@ class TCPNet:
 
     # SERVER STEP 1 (Part 2)
     def _handshake_syn_ack(self):
-        print(self.whois, 'Sending SYN-ACK')
+        # print(self.whois, 'Sending SYN-ACK')
         self.sent_syn_ack = True
         self.curr_seq_num = 2
         self.curr_ack_num = self.last_rxed_seq_num + 1
@@ -128,7 +128,7 @@ class TCPNet:
 
     # CLIENT STEP 2 (Part 3)
     def _handshake_ack(self):
-        print(self.whois, 'Sending ACK')
+        # print(self.whois, 'Sending ACK')
         self.sent_ack = True
         self.curr_seq_num = self.last_rxed_ack_num
         self.curr_ack_num = self.last_rxed_seq_num + 1
@@ -156,7 +156,7 @@ class TCPNet:
         self.dynamic_winsize = True
 
     def make_pkt(self, seq_num: int, ack_num: int, data: bytes):
-        print(self.whois, 'Making packet with data:', data)
+        # print(self.whois, 'Making packet with data:', data)
         pkt: bytearray = bytearray(self.make_hdr(seq_num, int.from_bytes(self.bit16sum(data), 'big')) + data)
         return pkt
 
@@ -208,15 +208,14 @@ class TCPNet:
                 self.send_data = None
                 # self._teardown()
             else:
-                print('\nNEW WINDOW')
+                # print('\nNEW WINDOW')
                 for i in range(window):
-                    # TODO: Something here is messed up.
                     seq = ack + (i * TCPNet.MAX_DATA_SIZE)
                     adj_ack = ack - self.zero_index
                     # Create packet
-                    print('Making packet from data[%d:%d]:'%(adj_ack + (i * TCPNet.MAX_DATA_SIZE), adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)))
-                    print(data[adj_ack + (i * TCPNet.MAX_DATA_SIZE) : adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)])
-                    print('\n')
+                    # print('Making packet from data[%d:%d]:'%(adj_ack + (i * TCPNet.MAX_DATA_SIZE), adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)))
+                    # print(data[adj_ack + (i * TCPNet.MAX_DATA_SIZE) : adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)])
+                    # print('\n')
                     pkt = self.make_pkt(seq, ack, data[adj_ack + (i * TCPNet.MAX_DATA_SIZE) : adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)])
                     # Send packet
                     sent_pkts += self._udt_send(pkt)
@@ -267,9 +266,9 @@ class TCPNet:
             # There's data and the sequence number is what we are looking for.
             if data is not None and data != b'':
                 if seq_num == self.curr_ack_num:
-                    print('APPENDING')
-                    print('data:', data)
-                    print('TO THE DEQUE')
+                    # print('APPENDING')
+                    # print('data:', data)
+                    # print('TO THE DEQUE')
                     self.rx_buffer.appendleft(data)
                     # print('CURR_ACK_NUM += LEN(DATA) + 1', self.curr_ack_num, len(data))
                     self.curr_ack_num += len(data)
@@ -301,21 +300,21 @@ class TCPNet:
         start = time.time_ns()
         to = False
 
-        print('rx_buffer:', self.rx_buffer)
+        # print('rx_buffer:', self.rx_buffer)
         if self.rx_buffer:
-            print('rx_buffer:', self.rx_buffer)
+            # print('rx_buffer:', self.rx_buffer)
             return self.rx_buffer.pop(), to
         elif not block:
-            print('rx_buffer:', self.rx_buffer)
+            # print('rx_buffer:', self.rx_buffer)
             return None, to
 
         while not self.done:
             if (timeout > 0) and (time.time_ns() - start >= 1e9 * timeout):
-                print('TIMED OUT!')
+                # print('TIMED OUT!')
                 to = True
                 return None, to
             if self.rx_buffer:
-                print('rx_buffer:', self.rx_buffer)
+                # print('rx_buffer:', self.rx_buffer)
                 return self.rx_buffer.pop(), to
             time.sleep(0.0001)
 
