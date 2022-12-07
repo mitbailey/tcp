@@ -22,6 +22,18 @@ class TCPNet:
     def __init__(self, ID: str, source_port: int, dest_ip: str, dest_port: int):
         self.whois = ID
 
+        self._setup(source_port, dest_ip, dest_port)
+
+
+
+    def __del__(self):
+        self.done = True
+        if self.rx_tid_active:
+            self.rx_tid.join()
+
+        # print(self.whois, 'destructor finished.')
+
+    def _setup(self, source_port: int, dest_ip: str, dest_port: int):
         self.teardown_initiated = False
 
         self.sent_syn = False
@@ -34,29 +46,18 @@ class TCPNet:
         self.done = False
         self.all_stop = False
         self.rx_buffer = collections.deque()
-        self.rx_tid = threading.Thread(target=self._tcp_rx_thread)
 
+        self.rx_tid = None
         self.rx_tid_active = False
         self.send_tid_active = False
         self.sent_pkts = 0
+        
         self.send_data = None
-
-        self._setup(source_port, dest_ip, dest_port)
-
+        
         self.zero_index = 0
 
         self.dynamic_winsize = True
         self.last_sent_packet = None
-
-    def __del__(self):
-        self.done = True
-        if self.rx_tid_active:
-            self.rx_tid.join()
-
-        # print(self.whois, 'destructor finished.')
-
-    def _setup(self, source_port: int, dest_ip: str, dest_port: int):
-        self.sent_pkts = 0
 
         self.DEST_IP = dest_ip #Set socket IP based on provided IP arguement (i.e., 'localhost')
         self.DEST_PORT = dest_port #Set outbound port based on provided arguement 
@@ -78,6 +79,7 @@ class TCPNet:
         self.handshake_begun = False
         self.handshake_complete = False
 
+        self.rx_tid = threading.Thread(target=self._tcp_rx_thread)
         self.rx_tid_active = True
         self.rx_tid.start()
 
@@ -87,6 +89,11 @@ class TCPNet:
         if self.handshake_complete:
             print(self.whois, 'Cannot begin a new stream while another is active.')
             return False
+
+        # If done, then we already sent something and then finished. Things must be reset.
+        if self.done:
+            self._setup(self.SOURCE_PORT, self.DEST_IP, self.DEST_PORT)
+
         self.send_data = send_data
         # self._handshake(0)
 
@@ -146,7 +153,7 @@ class TCPNet:
 
     def _teardown_fin(self):
         # 4-way handshake
-        print(self.whois, 'TEARDOWN HAS BEEN CALLED!')
+        # print(self.whois, 'TEARDOWN HAS BEEN CALLED!')
         self.teardown_initiated = True
 
         fin_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000001))
@@ -155,7 +162,7 @@ class TCPNet:
         # self.done = True
 
     def _teardown_ack(self):
-        print(self.whois, 'TEARDOWN HAS BEEN REQUESTED!')
+        # print(self.whois, 'TEARDOWN HAS BEEN REQUESTED!')
 
         ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010000))
         
@@ -170,6 +177,7 @@ class TCPNet:
         self.teardown_initiated = True
         # self._shutdown()
         self.done = True
+        print('self.done?', self.done)
 
     def _shutdown(self):
         print(self.whois, 'SHUTTING DOWN')
@@ -215,6 +223,9 @@ class TCPNet:
         return header
 
     def _udt_send(self, packet):
+        if self.done:
+            return 0
+
         self.last_sent_packet = packet
         # print(self.whois, 'UDT_SEND: ', packet)
         self.udp_sock.sendto(packet, (self.DEST_IP, self.DEST_PORT)) #Send the packet (either corrupted or as-intended) to the defined IP/port number 
@@ -280,7 +291,9 @@ class TCPNet:
                 # print(self.whois, 'just got:', src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, data)
             
             # Ensures that the program exits when told to.
+            # if self.done:
             if timedout and self.done:
+                print('Shutting down - recv')
                 self._shutdown()
                 break
             
@@ -336,6 +349,7 @@ class TCPNet:
             # TODO: Handle TCP things
 
         self.rx_tid_active = False
+        self._shutdown()
 
     def pop_data(self, block: bool = True, timeout: int = 0):
         start = time.time_ns()
