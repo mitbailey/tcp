@@ -17,7 +17,7 @@ import threading
 
 class TCPNet:
     MAX_DATA_SIZE = 10
-    DEFAULT_TIMEOUT = 2
+    DEFAULT_TIMEOUT = 0.001
 
     def __init__(self, ID: str, source_port: int, dest_ip: str, dest_port: int):
         self.whois = ID
@@ -35,12 +35,15 @@ class TCPNet:
 
         self.zero_index = 0
 
+        self.dynamic_winsize = True
+        self.last_sent_packet = None
+
     def __del__(self):
         self.done = True
         if self.rx_tid_active:
             self.rx_tid.join()
 
-        print(self.whois, 'destructor finished.')
+        # print(self.whois, 'destructor finished.')
 
     def _setup(self, source_port: int, dest_ip: str, dest_port: int):
         self.sent_pkts = 0
@@ -72,10 +75,10 @@ class TCPNet:
 
     def send(self, send_data: bytes):
         if self.handshake_complete:
-            print('Cannot begin a new stream while another is active.')
+            print(self.whois, 'Cannot begin a new stream while another is active.')
             return False
         self.send_data = send_data
-        # self._handshake()
+        # self._handshake(0)
 
     def _handshake(self, flags = 0):
         if self.handshake_complete:
@@ -85,16 +88,16 @@ class TCPNet:
             self._handshake_syn()
         elif flags == 0b000010: # SYN
             self.handshake_begun = True
-            # print(self.whois, 'Got SYN.')
+            # print(self.whois, 'Got SYN.', self.last_rxed_seq_num, self.last_rxed_ack_num)
             self._handshake_syn_ack()
         elif flags == 0b010010: # SYN-ACK
             self.handshake_begun = True
-            # print(self.whois, 'Got SYN-ACK.')
+            # print(self.whois, 'Got SYN-ACK.', self.last_rxed_seq_num, self.last_rxed_ack_num)
             self._handshake_ack()
         elif flags == 0b010000:
-            # print(self.whois, 'Got ACK.')
+            # print(self.whois, 'Got ACK.', self.last_rxed_seq_num, self.last_rxed_ack_num)
             self.handshake_complete = True 
-            print(self.whois, 'HANDSHAKE COMPLETED')
+            print(self.whois, 'HANDSHAKE COMPLETED', self.last_rxed_seq_num, self.last_rxed_ack_num)
 
     # CLIENT STEP 1 (Part 1)
     def _handshake_syn(self):
@@ -121,7 +124,7 @@ class TCPNet:
         self.zero_index = self.curr_seq_num + 1
         ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010000)) # 16
         self.handshake_complete = True
-        print(self.whois, 'HANDSHAKE COMPLETE')
+        # print(self.whois, 'HANDSHAKE COMPLETE')
         self._udt_send(ack_pkt)
 
     def _teardown(self):
@@ -134,6 +137,12 @@ class TCPNet:
 
     def set_timeout(self, duration):
         self.udp_sock.settimeout(duration)
+
+    def set_winsize(self, size: int):
+        self.rx_win_size = size
+
+    def set_dynamic_winsize(self, on: bool = True):
+        self.dynamic_winsize = True
 
     def make_pkt(self, seq_num: int, ack_num: int, data: bytes):
         pkt: bytearray = bytearray(self.make_hdr(seq_num, int.from_bytes(self.bit16sum(data), 'big')) + data)
@@ -159,6 +168,7 @@ class TCPNet:
         return header
 
     def _udt_send(self, packet):
+        self.last_sent_packet = packet
         self.udp_sock.sendto(packet, (self.DEST_IP, self.DEST_PORT)) #Send the packet (either corrupted or as-intended) to the defined IP/port number 
         return 1
 
@@ -177,7 +187,6 @@ class TCPNet:
             a_pkt = self.make_hdr(a_seq, a_ack, flags=0b010000)
             sent_pkts += self._udt_send(a_pkt)
 
-
         if self.send_data is not None:
             # Check for the case where all the bytes of this data have been acknowledged.
             # print('if ack - self.zero_index == len(data)')
@@ -186,20 +195,28 @@ class TCPNet:
                 self.send_data = None
                 # self._teardown()
             else:
+                # print('\nNEW WINDOW')
                 for i in range(window):
                     # TODO: Something here is messed up.
                     seq = ack + (i * TCPNet.MAX_DATA_SIZE)
+                    adj_ack = ack - self.zero_index
                     # Create packet
-                    pkt = self.make_pkt(seq, ack, data[ack - self.zero_index + (i * TCPNet.MAX_DATA_SIZE) : ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)])
+                    # print('Making packet from data[%d:%d]:'%(adj_ack + (i * TCPNet.MAX_DATA_SIZE), adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)))
+                    # print(data[adj_ack + (i * TCPNet.MAX_DATA_SIZE) : adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)])
+                    # print('\n')
+                    pkt = self.make_pkt(seq, ack, data[adj_ack + (i * TCPNet.MAX_DATA_SIZE) : adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)])
                     # Send packet
                     sent_pkts += self._udt_send(pkt)
 
                     # We've read to the end of the data and its time to stop.
-                    if (ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)) >= len(data):
+                    if (adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)) >= len(data):
                         break
 
         self.send_tid_active = False
         self.sent_pkts += sent_pkts
+
+    def _retransmit(self):
+        self._udt_send(self.last_sent_packet)
 
     #Define rdt_rcv() function: Receive packets 
     def _tcp_rx_thread(self):
@@ -207,16 +224,26 @@ class TCPNet:
             force_close = False
             timedout = False
 
+            # The main receiving function.
             src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, data, force_close, timedout = self._tcp_recv()
-            time.sleep(0.5)
+            
             if not timedout:
                 pass
                 # print(self.whois, 'just got:', src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, data)
+            
+            # Ensures that the program exits when told to.
             if timedout and self.done:
                 break
+            
+            # Accounts for accidental direct loopback (highly unlikely).
             if dest_port == self.DEST_PORT:
-                print(self.whois, 'Ignored!')
+                # print(self.whois, 'Ignored!')
                 continue
+            
+            # Deals with timeouts via retransmission.
+            if timedout:
+                if self.last_sent_packet is not None:
+                    self._retransmit()
 
             if seq_num is not None and ack_num is not None:
                 self.last_rxed_seq_num = seq_num
@@ -228,13 +255,17 @@ class TCPNet:
             if data is not None and data != b'':
                 if seq_num == self.curr_ack_num:
                     # print('APPENDING')
-                    print('data:', data)
+                    # print('data:', data)
                     # print('TO THE DEQUE')
                     self.rx_buffer.appendleft(data)
                     # print('CURR_ACK_NUM += LEN(DATA) + 1', self.curr_ack_num, len(data))
-                    self.curr_ack_num += len(data) + 1
+                    self.curr_ack_num += len(data)
 
             if not self.handshake_complete:
+                # if flags is None and self.send_data is not None:
+                #     self._handshake(0)
+                # elif flags is not None:
+                #     self._handshake(flags)
                 if flags is None:
                     flags = 0
                 self._handshake(flags)
@@ -249,20 +280,32 @@ class TCPNet:
 
         self.rx_tid_active = False
 
-    def pop_data(self, block: bool = True):
+    def pop_data(self, block: bool = True, timeout: int = 0.5):
+        start = time.time_ns()
+        to = False
+
         # print('rx_buffer:', self.rx_buffer)
         if self.rx_buffer:
             # print('rx_buffer:', self.rx_buffer)
-            return self.rx_buffer.pop()
+            return self.rx_buffer.pop(), to
         elif not block:
             # print('rx_buffer:', self.rx_buffer)
-            return None
+            return None, to
 
         while not self.done:
+            if (timeout > 0) and (time.time_ns() - start >= 1e9 * timeout):
+                # print('TIMED OUT!')
+                to = True
+                return None, to
             if self.rx_buffer:
                 # print('rx_buffer:', self.rx_buffer)
-                return self.rx_buffer.pop()
+                return self.rx_buffer.pop(), to
             time.sleep(0.0001)
+
+    def data_empty(self):
+        if len(self.rx_buffer) == 0:
+            return True
+        return False
 
     def _tcp_recv(self):
         src_port = None
