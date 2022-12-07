@@ -20,11 +20,13 @@ class TCPNet:
     DEFAULT_TIMEOUT = 0.001
 
     def __init__(self, ID: str, source_port: int, dest_ip: str, dest_port: int):
+        self.CORR_PROB = 0
+        self.CORR_TYPE = 'none' # none, loss, error, both
+        self.CORR_WHICH = 'none'
+
         self.whois = ID
 
         self._setup(source_port, dest_ip, dest_port)
-
-
 
     def __del__(self):
         self.done = True
@@ -85,6 +87,12 @@ class TCPNet:
 
         self.ack_required = False
 
+    def listen(self, source_port: int, dest_ip: str, dest_port: int):
+        if self.done:
+            self._setup(source_port, dest_ip, dest_port)
+        else:
+            print(self.whois, 'Already setup to listen!')
+
     def send(self, send_data: bytes):
         if self.handshake_complete:
             print(self.whois, 'Cannot begin a new stream while another is active.')
@@ -123,7 +131,7 @@ class TCPNet:
         self.sent_syn = True
         self.curr_seq_num = 1
         self.curr_ack_num = 0
-        syn_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000010)) # 2
+        syn_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000010, checksum=0)) # 2
         self._udt_send(syn_pkt)
 
     # SERVER STEP 1 (Part 2)
@@ -133,7 +141,7 @@ class TCPNet:
         self.curr_seq_num = 2
         self.curr_ack_num = self.last_rxed_seq_num + 1
         self.zero_index = self.curr_ack_num 
-        syn_ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010010)) # 18
+        syn_ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010010, checksum=0)) # 18
         self._udt_send(syn_ack_pkt)
 
     # CLIENT STEP 2 (Part 3)
@@ -143,9 +151,9 @@ class TCPNet:
         self.curr_seq_num = self.last_rxed_ack_num
         self.curr_ack_num = self.last_rxed_seq_num + 1
         self.zero_index = self.curr_seq_num 
-        ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010000)) # 16
+        ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010000, checksum=0)) # 16
         self.handshake_complete = True
-        # print(self.whois, 'HANDSHAKE COMPLETE')
+        # print(self.whois, 'HANDSHAKE COMPLETE', self.curr_seq_num, self.curr_ack_num)
         self._udt_send(ack_pkt)
 
     def _teardown(self):
@@ -156,7 +164,7 @@ class TCPNet:
         # print(self.whois, 'TEARDOWN HAS BEEN CALLED!')
         self.teardown_initiated = True
 
-        fin_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000001))
+        fin_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000001, checksum=0))
         self._udt_send(fin_pkt)
 
         # self.done = True
@@ -164,30 +172,42 @@ class TCPNet:
     def _teardown_ack(self):
         # print(self.whois, 'TEARDOWN HAS BEEN REQUESTED!')
 
-        ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010000))
+        ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010000, checksum=0))
         
         self._udt_send(ack_pkt)
 
         if not self.teardown_initiated:
             # If teardown initiated, then we must be the initiator and have already sent a FIN.
-            fin_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000001))
+            fin_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000001, checksum=0))
             
             self._udt_send(fin_pkt)
 
         self.teardown_initiated = True
         # self._shutdown()
         self.done = True
-        print('self.done?', self.done)
+        # print('self.done?', self.done)
 
     def _shutdown(self):
-        print(self.whois, 'SHUTTING DOWN')
+        # print(self.whois, 'SHUTTING DOWN')
         # self.done = True
 
     # def _terminate(self):
         self.udp_sock.shutdown(socket.SHUT_RDWR)
         self.udp_sock.close()
 
-        print(self.whois, 'CONNECTION TERMINATED')
+        self.handshake_begun = False
+        self.handshake_complete = False
+
+        # print(self.whois, 'CONNECTION TERMINATED')
+
+    def set_corruption_type(self, c_type: str):
+        self.CORR_TYPE = c_type
+
+    def set_corruption_probability(self, c_prob: float):
+        self.CORR_PROB = c_prob
+
+    def set_corruption_which(self, which: str):
+        self.CORR_WHICH = which
 
     def set_timeout(self, duration):
         self.udp_sock.settimeout(duration)
@@ -200,10 +220,10 @@ class TCPNet:
 
     def make_pkt(self, seq_num: int, ack_num: int, data: bytes):
         # print(self.whois, 'Making packet with data:', data)
-        pkt: bytearray = bytearray(self.make_hdr(seq_num, int.from_bytes(self.bit16sum(data), 'big')) + data)
+        pkt: bytearray = bytearray(self.make_hdr(seq_num, ack_num, int.from_bytes(self.bit16sum(data), 'big')) + data)
         return pkt
 
-    def make_hdr(self, seq_num: int, ack_num: int, checksum: bytes = 0x0, flags: int = 0b00000000):
+    def make_hdr(self, seq_num: int, ack_num: int, checksum: int, flags: int = 0b00000000):
         hdr_len = 0 # Header length = Header length field value x 4 bytes
         urg_ptr = 0
 
@@ -227,23 +247,44 @@ class TCPNet:
             return 0
 
         self.last_sent_packet = packet
+
+        if (len(packet) > 25) and (((self.CORR_WHICH == 'send') and (self.send_data is not None)) or ((self.CORR_WHICH == 'recv') and (self.send_data is None))):
+            if random.random() < self.CORR_PROB:
+                if self.CORR_TYPE == 'loss':
+                    # print(self.whois, 'CORRUPTION: Packet lost!', self.last_rxed_seq_num, self.last_rxed_ack_num)
+                    return 1
+                if self.CORR_TYPE == 'error':
+                    # print(self.whois, 'CORRUPTION: Packet error!', self.last_rxed_seq_num, self.last_rxed_ack_num, self.curr_seq_num, self.curr_ack_num)
+                    packet[25] = 42
+
         # print(self.whois, 'UDT_SEND: ', packet)
+        # print(self.whois, self.last_rxed_seq_num, self.last_rxed_ack_num, self.curr_seq_num, self.curr_ack_num)
         self.udp_sock.sendto(packet, (self.DEST_IP, self.DEST_PORT)) #Send the packet (either corrupted or as-intended) to the defined IP/port number 
         return 1
 
     def _tcp_send_thread(self):
         data = self.send_data        
         sent_pkts = 0
-        window = self.rx_win_size
         ack = self.last_rxed_ack_num # Basically the next requested byte.
+        seq = self.curr_seq_num
+
+        # This is where we reset win_size to 1/2 due to packet loss.
+        if ack != seq + self.MAX_DATA_SIZE:
+            self.rx_win_size = int(self.rx_win_size / 2)
+            if self.rx_win_size < 1:
+                self.rx_win_size = 1
+        else:
+            self.rx_win_size += 1
+
+        window = self.rx_win_size
 
         if not self.handshake_complete:
             return
 
         if self.ack_required:
-            a_seq = 69696
+            a_seq = 42424
             a_ack = self.curr_ack_num
-            a_pkt = self.make_hdr(a_seq, a_ack, flags=0b010000)
+            a_pkt = self.make_hdr(a_seq, a_ack, checksum=0, flags=0b010000)
             sent_pkts += self._udt_send(a_pkt)
 
         if self.send_data is not None:
@@ -251,7 +292,7 @@ class TCPNet:
             # print('if ack - self.zero_index == len(data)')
             # print('if %d - %d == %d'%(ack, self.zero_index, len(data)))
             if ack - self.zero_index >= len(data):
-                print(self.whois, 'Calling teardown because %d >= %d.'%(ack-self.zero_index, len(data)))
+                # print(self.whois, 'Calling teardown because %d >= %d.'%(ack-self.zero_index, len(data)))
                 self.send_data = None
                 self._teardown()
             else:
@@ -271,11 +312,22 @@ class TCPNet:
                     if (adj_ack + TCPNet.MAX_DATA_SIZE + (i * TCPNet.MAX_DATA_SIZE)) >= len(data):
                         break
 
+        self.curr_seq_num = seq
         self.send_tid_active = False
         self.sent_pkts += sent_pkts
 
-    def _retransmit(self):
-        self._udt_send(self.last_sent_packet)
+    def _retransmit(self, timedout):
+        ret_pkt = self.last_sent_packet
+
+        if timedout:
+            self.rx_win_size = 1
+            ret_pkt[14:16] = self.rx_win_size.to_bytes(2, 'big')
+            self._udt_send(ret_pkt)
+        else:
+            self.rx_win_size = int(self.rx_win_size / 2)
+            if self.rx_win_size < 1:
+                self.rx_win_size = 1
+
 
     #Define rdt_rcv() function: Receive packets 
     def _tcp_rx_thread(self):
@@ -293,7 +345,7 @@ class TCPNet:
             # Ensures that the program exits when told to.
             # if self.done:
             if timedout and self.done:
-                print('Shutting down - recv')
+                # print('Shutting down - recv')
                 self._shutdown()
                 break
             
@@ -301,11 +353,19 @@ class TCPNet:
             if dest_port == self.DEST_PORT:
                 # print(self.whois, 'Ignored!')
                 continue
+
+            if rx_win_size is not None:
+                self.rx_win_size = rx_win_size
             
             # Deals with timeouts via retransmission.
-            if timedout:
+            # if (flags == 0) and (data is not None):
+                # print(checksum, int.from_bytes(self.bit16sum(data), 'big'))
+            if (flags == 0) and (data is not None) and (timedout or checksum != int.from_bytes(self.bit16sum(data), 'big')):
+                # print('bedfdfs')
                 if self.last_sent_packet is not None:
-                    self._retransmit()
+                    self._retransmit(timedout)
+                if checksum != self.bit16sum(data):
+                    continue
 
             if flags is not None and flags == 1:
                 # Received FIN!

@@ -12,10 +12,13 @@ import tcpnet
 import time
 import random
 
-def test_instantiation():
+def test_instantiation(corr_prob: float, corr_type: str, corr_which: str):
     id = random.randint(10000, 99999)
     pts = 0
     net = tcpnet.TCPNet('A %d'%(id), 52040, 'localhost', 52041)
+    net.set_corruption_probability(corr_prob)
+    net.set_corruption_type(corr_type)
+    net.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
     if net is not None:
         pts += 1
@@ -26,10 +29,16 @@ def test_instantiation():
     pts += 1
     return pts == 2
 
-def test_single_byte_tx_rx():
+def test_single_byte_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
+    net1.set_corruption_probability(corr_prob)
+    net1.set_corruption_type(corr_type)
+    net2.set_corruption_probability(corr_prob)
+    net2.set_corruption_type(corr_type)
+    net1.set_corruption_which(corr_which)
+    net2.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
 
     sendable = b'a'
@@ -49,10 +58,16 @@ def test_single_byte_tx_rx():
 
     return data == sendable
 
-def test_multi_byte_tx_rx():
+def test_multi_byte_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
+    net1.set_corruption_probability(corr_prob)
+    net1.set_corruption_type(corr_type)
+    net2.set_corruption_probability(corr_prob)
+    net2.set_corruption_type(corr_type)
+    net1.set_corruption_which(corr_which)
+    net2.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
 
     sendable = b'abcdefg'
@@ -70,10 +85,16 @@ def test_multi_byte_tx_rx():
 
     return data == sendable
 
-def test_multi_byte_delay_tx_rx():
+def test_multi_byte_delay_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
+    net1.set_corruption_probability(corr_prob)
+    net1.set_corruption_type(corr_type)
+    net2.set_corruption_probability(corr_prob)
+    net2.set_corruption_type(corr_type)
+    net1.set_corruption_which(corr_which)
+    net2.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
 
     sendable = b'abcdefg'
@@ -92,10 +113,16 @@ def test_multi_byte_delay_tx_rx():
 
     return data == sendable
 
-def test_single_packet_tx_rx():
+def test_single_packet_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
+    net1.set_corruption_probability(corr_prob)
+    net1.set_corruption_type(corr_type)
+    net2.set_corruption_probability(corr_prob)
+    net2.set_corruption_type(corr_type)
+    net1.set_corruption_which(corr_which)
+    net2.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
 
     sendable: bytearray = b''
@@ -126,10 +153,16 @@ def test_single_packet_tx_rx():
 
     return data == sendable
 
-def test_multi_packet_tx_rx():
+def test_multi_packet_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
+    net1.set_corruption_probability(corr_prob)
+    net1.set_corruption_type(corr_type)
+    net2.set_corruption_probability(corr_prob)
+    net2.set_corruption_type(corr_type)
+    net1.set_corruption_which(corr_which)
+    net2.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
 
     sendable: bytearray = b''
@@ -162,10 +195,16 @@ def test_multi_packet_tx_rx():
 
     return data == sendable
 
-def test_many_packet_tx_rx():
+def test_many_packet_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
+    net1.set_corruption_probability(corr_prob)
+    net1.set_corruption_type(corr_type)
+    net2.set_corruption_probability(corr_prob)
+    net2.set_corruption_type(corr_type)
+    net1.set_corruption_which(corr_which)
+    net2.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
 
     sendable: bytearray = b''
@@ -207,12 +246,102 @@ def test_many_packet_tx_rx():
     # print('\n\n\nSENDABLE')
     # print(sendable)
 
+    # print(data)
+    # print(sendable)
+
     return data == sendable
 
-def test_file_tx_rx():
+def test_many_packet_multi_send_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
+    id = random.randint(10000, 99999)
+    net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
+    net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
+    net1.set_corruption_probability(corr_prob)
+    net1.set_corruption_type(corr_type)
+    net2.set_corruption_probability(corr_prob)
+    net2.set_corruption_type(corr_type)
+    net1.set_corruption_which(corr_which)
+    net2.set_corruption_which(corr_which)
+    # print('ID #%d'%(id))
+
+    sendable: bytearray = b''
+    # for i in range(tcpnet.TCPNet.MAX_DATA_SIZE * 2):
+    #     sendable += random.randint(65, 90).to_bytes(1, 'big')
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendable += b'D'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendable += b'E'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendable += b'F'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendable += b'G'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendable += b'H'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendable += b'I'
+    # print(sendable)
+
+    net1.send(sendable)
+
+    # print('Waiting for data...')
+    data, to = net2.pop_data()
+    to = False
+    while to is False:
+        d, to = net2.pop_data(timeout=0.5)
+        if d is not None:
+            data += d
+
+    sendableB: bytearray = b''
+    # for i in range(tcpnet.TCPNet.MAX_DATA_SIZE * 2):
+    #     sendable += random.randint(65, 90).to_bytes(1, 'big')
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendableB += b'J'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendableB += b'K'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendableB += b'L'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendableB += b'M'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendableB += b'N'
+    for i in range(tcpnet.TCPNet.MAX_DATA_SIZE):
+        sendableB += b'O'
+    # print(sendable)
+
+    net2.listen(52043, 'localhost', 52042)
+    net1.send(sendableB)
+
+    # print('Waiting for data...')
+    dataB, to = net2.pop_data()
+    to = False
+    while to is False:
+        d, to = net2.pop_data(timeout=0.5)
+        if d is not None:
+            dataB += d
+
+    # print(data)
+
+    net1.all_stop = True
+    net2.all_stop = True
+    del net1
+    del net2
+
+    # print('\n\n\nDATA')
+    # print(data)
+    # print('\n\n\nSENDABLE')
+    # print(sendable)
+
+    return data == sendable and dataB == sendableB
+
+def test_file_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     id = random.randint(10000, 99999)
     fnet1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     fnet2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
+    fnet1.set_corruption_probability(corr_prob)
+    fnet1.set_corruption_type(corr_type)
+    fnet2.set_corruption_probability(corr_prob)
+    fnet2.set_corruption_type(corr_type)
+    fnet1.set_corruption_which(corr_which)
+    fnet2.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
 
     file = open('smpte.bmp', 'rb')
@@ -245,10 +374,16 @@ def test_file_tx_rx():
 
     return data == sendable
 
-def test_big_file_tx_rx():
+def test_big_file_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     id = random.randint(10000, 99999)
     net1 = tcpnet.TCPNet('Sender %d'%(id), 52042, 'localhost', 52043)
     net2 = tcpnet.TCPNet('Receiver %d'%(id), 52043, 'localhost', 52042)
+    net1.set_corruption_probability(corr_prob)
+    net1.set_corruption_type(corr_type)
+    net2.set_corruption_probability(corr_prob)
+    net2.set_corruption_type(corr_type)
+    net1.set_corruption_which(corr_which)
+    net2.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
 
     file = open('card.bmp', 'rb')
@@ -284,95 +419,121 @@ def test_big_file_tx_rx():
 if __name__ == '__main__':
     successes = 0
     failures = 0
-    max_data_size = 5
-    while max_data_size < 1000:
-        max_data_size *= 2
-        if max_data_size > 1000:
-            max_data_size = 1000
 
-        tcpnet.TCPNet.MAX_DATA_SIZE = max_data_size
+    which_list = ['send', 'recv', 'both']
+    for w in range(len(which_list)):
+        corr_list = ['error', 'loss']
+        for i in range(len(corr_list)):
+            for ii in range(5, 50, 20): # Corruption Amounts
+                corruption_prob = ii/100
+                corruption_type = corr_list[i]
+                which = which_list[w]
 
-        print('Maximum Data Size =', max_data_size, 'bytes\n')
+    # corruption_prob = 0.2
+    # corruption_type = 'loss'
+    # which = 'send'
 
-        print('Instantiation:')
-        if test_instantiation():
-            print('SUCCESS')
-            successes += 1
-        else:
-            print('FAILURE')
-            failures += 1 
-        print('')
+                max_data_size = 5
+                while max_data_size < 1000:
+                    max_data_size *= 2
+                    if max_data_size > 1000:
+                        max_data_size = 1000
 
-        print('Single Byte:')
-        if test_single_byte_tx_rx():
-            print('SUCCESS')
-            successes += 1 
-        else:
-            print('FAILURE')
-            failures += 1 
-        print('')
+                tcpnet.TCPNet.MAX_DATA_SIZE = max_data_size
 
-        print('Multi-Byte:')
-        if test_multi_byte_tx_rx():
-            print('SUCCESS')
-            successes += 1 
-        else:
-            print('FAILURE')
-            failures += 1 
-        print('')
+                print('/////////////////////////////////////////////////')
+                print('Max Packet Data, Corruption Prob, Corruption Type')
+                print('%4d bytes,      %02.02f%%,          %s'%(max_data_size, corruption_prob*100, corruption_type))
+                print('')
 
-        print('Multi-Byte Delay:')
-        if test_multi_byte_delay_tx_rx():
-            print('SUCCESS')
-            successes += 1 
-        else:
-            print('FAILURE')
-            failures += 1 
-        print('')
+                print('Instantiation:')
+                if test_instantiation(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
 
-        print('Single-Packet:')
-        if test_single_packet_tx_rx():
-            print('SUCCESS')
-            successes += 1 
-        else:
-            print('FAILURE')
-            failures += 1 
-        print('')
+                print('Single Byte:')
+                if test_single_byte_tx_rx(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1 
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
 
-        print('Multi-Packet:')
-        if test_multi_packet_tx_rx():
-            print('SUCCESS')
-            successes += 1 
-        else:
-            print('FAILURE')
-            failures += 1 
-        print('')
+                print('Multi-Byte:')
+                if test_multi_byte_tx_rx(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1 
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
 
-        print('Many Packet:')
-        if test_many_packet_tx_rx():
-            print('SUCCESS')
-            successes += 1 
-        else:
-            print('FAILURE')
-            failures += 1 
-        print('')
+                print('Multi-Byte Delay:')
+                if test_multi_byte_delay_tx_rx(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1 
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
 
-        print('File:')
-        if test_file_tx_rx():
-            print('SUCCESS')
-            successes += 1 
-        else:
-            print('FAILURE')
-            failures += 1 
-        print('')
+                print('Single-Packet:')
+                if test_single_packet_tx_rx(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1 
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
 
-    print('Big File:')
-    if test_big_file_tx_rx():
-        print('SUCCESS')
-        successes += 1 
-    else:
-        print('FAILURE')
-        failures += 1 
-    print('')
+                print('Multi-Packet:')
+                if test_multi_packet_tx_rx(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1 
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
+
+                print('Many Packet:')
+                if test_many_packet_tx_rx(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1 
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
+
+                print('Many Packet Multi-Send:')
+                if test_many_packet_multi_send_tx_rx(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1 
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
+
+                print('File:')
+                if test_file_tx_rx(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1 
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
+
+                print('Big File:')
+                if test_big_file_tx_rx(corruption_prob, corruption_type, which):
+                    print('SUCCESS')
+                    successes += 1 
+                else:
+                    print('FAILURE')
+                    failures += 1 
+                print('')
 
     print('Tests complete (%d passes, %d fails).'%(successes, failures))

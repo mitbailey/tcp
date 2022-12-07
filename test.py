@@ -1,5 +1,5 @@
 seq_num: int = 4294967295
-ack_num: int = 0
+ack_num: int = 1002
 checksum: bytes = 0x0
 flags: bytes = 0b11001100
 hdr_len = 240 # Header length = Header length field value x 4 bytes
@@ -13,10 +13,12 @@ header: bytearray = bytearray(SOURCE_PORT.to_bytes(2, 'big') + DEST_PORT.to_byte
 print(header[0:])
 print(header[0:2])
 print(header[2:4])
-print(header[4:8])
-print(header[8:12])
+print(int.from_bytes(header[4:8], 'big'))
+print(int.from_bytes(header[8:12], 'big'))
 print(header[12:13])
 print(header[13:14])
 print(header[14:16])
 print(header[16:18])
 print(header[18:20])
+# print(len(header))
+# print(header[20])
