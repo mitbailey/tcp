@@ -22,6 +22,8 @@ class TCPNet:
     def __init__(self, ID: str, source_port: int, dest_ip: str, dest_port: int):
         self.whois = ID
 
+        self.teardown_initiated = False
+
         self.sent_syn = False
         self.sent_syn_ack = False
         self.sent_ack = False
@@ -30,6 +32,7 @@ class TCPNet:
         self.got_ack = False
 
         self.done = False
+        self.all_stop = False
         self.rx_buffer = collections.deque()
         self.rx_tid = threading.Thread(target=self._tcp_rx_thread)
 
@@ -139,12 +142,44 @@ class TCPNet:
         self._udt_send(ack_pkt)
 
     def _teardown(self):
+        self._teardown_fin()
+
+    def _teardown_fin(self):
         # 4-way handshake
         print(self.whois, 'TEARDOWN HAS BEEN CALLED!')
+        self.teardown_initiated = True
+
+        fin_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000001))
+        self._udt_send(fin_pkt)
+
+        # self.done = True
+
+    def _teardown_ack(self):
+        print(self.whois, 'TEARDOWN HAS BEEN REQUESTED!')
+
+        ack_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b010000))
+        
+        self._udt_send(ack_pkt)
+
+        if not self.teardown_initiated:
+            # If teardown initiated, then we must be the initiator and have already sent a FIN.
+            fin_pkt: bytearray = bytearray(self.make_hdr(seq_num=self.curr_seq_num, ack_num=self.curr_ack_num, flags=0b000001))
+            
+            self._udt_send(fin_pkt)
+
+        self.teardown_initiated = True
+        # self._shutdown()
+        self.done = True
+
+    def _shutdown(self):
+        print(self.whois, 'SHUTTING DOWN')
+        # self.done = True
+
+    # def _terminate(self):
         self.udp_sock.shutdown(socket.SHUT_RDWR)
         self.udp_sock.close()
-        self.done = True
-        pass
+
+        print(self.whois, 'CONNECTION TERMINATED')
 
     def set_timeout(self, duration):
         self.udp_sock.settimeout(duration)
@@ -205,8 +240,9 @@ class TCPNet:
             # print('if ack - self.zero_index == len(data)')
             # print('if %d - %d == %d'%(ack, self.zero_index, len(data)))
             if ack - self.zero_index >= len(data):
+                print(self.whois, 'Calling teardown because %d >= %d.'%(ack-self.zero_index, len(data)))
                 self.send_data = None
-                # self._teardown()
+                self._teardown()
             else:
                 # print('\nNEW WINDOW')
                 for i in range(window):
@@ -232,7 +268,7 @@ class TCPNet:
 
     #Define rdt_rcv() function: Receive packets 
     def _tcp_rx_thread(self):
-        while not self.done:
+        while not self.done and not self.all_stop:
             force_close = False
             timedout = False
 
@@ -245,6 +281,7 @@ class TCPNet:
             
             # Ensures that the program exits when told to.
             if timedout and self.done:
+                self._shutdown()
                 break
             
             # Accounts for accidental direct loopback (highly unlikely).
@@ -256,6 +293,10 @@ class TCPNet:
             if timedout:
                 if self.last_sent_packet is not None:
                     self._retransmit()
+
+            if flags is not None and flags == 1:
+                # Received FIN!
+                self._teardown_ack()
 
             if seq_num is not None and ack_num is not None:
                 self.last_rxed_seq_num = seq_num
@@ -308,7 +349,7 @@ class TCPNet:
             # print('rx_buffer:', self.rx_buffer)
             return None, to
 
-        while not self.done:
+        while not self.all_stop:
             if (timeout > 0) and (time.time_ns() - start >= 1e9 * timeout):
                 # print('TIMED OUT!')
                 to = True

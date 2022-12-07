@@ -20,7 +20,7 @@ def test_instantiation():
     if net is not None:
         pts += 1
 
-    net.done = True
+    net.all_stop = True
     del net
 
     pts += 1
@@ -36,12 +36,14 @@ def test_single_byte_tx_rx():
     net1.send(sendable)
 
     # print('Waiting for data...')
+    if net2 is None:
+        print('net2 is none')
     data, _ = net2.pop_data()
     
     # print(data)
 
-    net1.done = True
-    net2.done = True
+    net1.all_stop = True
+    net2.all_stop = True
     del net1
     del net2
 
@@ -61,8 +63,8 @@ def test_multi_byte_tx_rx():
     
     # print(data)
 
-    net1.done = True
-    net2.done = True
+    net1.all_stop = True
+    net2.all_stop = True
     del net1
     del net2
 
@@ -83,8 +85,8 @@ def test_multi_byte_delay_tx_rx():
     
     # print(data)
 
-    net1.done = True
-    net2.done = True
+    net1.all_stop = True
+    net2.all_stop = True
     del net1
     del net2
 
@@ -112,8 +114,8 @@ def test_single_packet_tx_rx():
 
     # print(data)
 
-    net1.done = True
-    net2.done = True
+    net1.all_stop = True
+    net2.all_stop = True
     del net1
     del net2
 
@@ -148,8 +150,8 @@ def test_multi_packet_tx_rx():
 
     # print(data)
 
-    net1.done = True
-    net2.done = True
+    net1.all_stop = True
+    net2.all_stop = True
     del net1
     del net2
 
@@ -195,8 +197,8 @@ def test_many_packet_tx_rx():
 
     # print(data)
 
-    net1.done = True
-    net2.done = True
+    net1.all_stop = True
+    net2.all_stop = True
     del net1
     del net2
 
@@ -229,8 +231,8 @@ def test_file_tx_rx():
 
     # print(data)
 
-    fnet1.done = True
-    fnet2.done = True
+    fnet1.all_stop = True
+    fnet2.all_stop = True
     del fnet1
     del fnet2
 
@@ -265,8 +267,8 @@ def test_big_file_tx_rx():
 
     # print(data)
 
-    net1.done = True
-    net2.done = True
+    net1.all_stop = True
+    net2.all_stop = True
     del net1
     del net2
 
