@@ -15,9 +15,11 @@ import time
 import collections
 import threading
 
+# %%
+
 # TODO: Write statistics to files and then read the files turning them into graphs in tcptest.py.
 
-class TCPNet:
+class TCPNet():
     MAX_DATA_SIZE = 992
     DEFAULT_TIMEOUT = 0.001
     TYPICAL_RTT = 0.125
@@ -40,6 +42,20 @@ class TCPNet:
         # print(self.whois, 'destructor finished.')
 
     def _setup(self, source_port: int, dest_ip: str, dest_port: int):
+        # self.log = None
+        self.logged_time = []
+        self.logged_packets_sent = []
+        self.logged_packets_recvd = []
+        self.logged_packets_corrupted = []
+        self.logged_packets_lost = []
+        self.logged_timeout = []
+        self.logged_winsize = []
+
+        self.packets_sent = 0
+        self.packets_recvd = 0
+        self.packets_corrupted = 0
+        self.packets_lost = 0
+
         self.teardown_initiated = False
         self.consecutive_nacks = 0
 
@@ -111,6 +127,7 @@ class TCPNet:
         if self.done:
             self._setup(self.SOURCE_PORT, self.DEST_IP, self.DEST_PORT)
 
+        # self.log_initial()
         self.send_data = send_data
 
     def _handshake(self, flags = 0):
@@ -193,6 +210,7 @@ class TCPNet:
         self.teardown_initiated = True
         # self._shutdown()
         self.done = True
+        # self.log_final()
         # print('self.done?', self.done)
 
     def _shutdown(self):
@@ -205,6 +223,7 @@ class TCPNet:
 
         self.handshake_begun = False
         self.handshake_complete = False
+
 
         # print(self.whois, 'CONNECTION TERMINATED')
 
@@ -251,6 +270,8 @@ class TCPNet:
         return header
 
     def _udt_send(self, packet):
+        # self.log_update()
+
         if self.done:
             return 0
 
@@ -260,9 +281,12 @@ class TCPNet:
             if random.random() < self.CORR_PROB:
                 if self.CORR_TYPE == 'loss':
                     # print(self.whois, 'CORRUPTION: Packet lost!', self.last_rxed_seq_num, self.last_rxed_ack_num)
+                    self.packets_lost += 1
+                    self.packets_sent += 1
                     return 1
                 if self.CORR_TYPE == 'error':
                     # print(self.whois, 'CORRUPTION: Packet error!', self.last_rxed_seq_num, self.last_rxed_ack_num, self.curr_seq_num, self.curr_ack_num)
+                    self.packets_corrupted += 1
                     packet[35] = 42
 
         # print(self.whois, 'UDT_SEND: ', packet)
@@ -277,7 +301,28 @@ class TCPNet:
             print('self.all_stop', self.all_stop)
             print('The socket is', self.udp_sock, 'and is type', type(self.udp_sock))
             input('Press ENTER to continue...')
+        self.packets_sent += 1
         return 1
+
+    def _handle_winsize(self, timedout):
+        ack = self.last_rxed_ack_num
+        seq = self.curr_seq_num
+
+        # This is where we reset win_size to 1/2 due to packet loss.
+        if ack != seq + self.MAX_DATA_SIZE:
+            self.consecutive_nacks += 1
+        else:
+            self.consecutive_nacks = 0
+        if timedout:
+            self.consecutive_nacks = 0
+            self.rx_win_size = 1
+        elif self.consecutive_nacks > 3:
+            self.consecutive_nacks = 0
+            self.rx_win_size = int(self.rx_win_size / 2)
+            if self.rx_win_size < 1:
+                self.rx_win_size = 1
+        else:
+            self.rx_win_size += 1
 
     def _tcp_send_thread(self):
         data = self.send_data        
@@ -285,27 +330,27 @@ class TCPNet:
         ack = self.last_rxed_ack_num # Basically the next requested byte.
         seq = self.curr_seq_num
 
-        # This is where we reset win_size to 1/2 due to packet loss.
-        # print('%d ?= %d, (%d + %d)'%(ack, seq + self.MAX_DATA_SIZE, seq, self.MAX_DATA_SIZE))
-        # print('\nCONSECUTIVE NACKS: %d'%(self.consecutive_nacks))
-        if ack != seq + self.MAX_DATA_SIZE:
-            self.consecutive_nacks += 1
-            # print('Increased consecutive nacks to %d.'%(self.consecutive_nacks))
-        else:
-            self.consecutive_nacks = 0
-            # print('Reset consecutive nacks to %d.'%(self.consecutive_nacks))
-        if self.consecutive_nacks > 3:
-            # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
-            self.consecutive_nacks = 0
-            # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
-            self.rx_win_size = int(self.rx_win_size / 2)
-            if self.rx_win_size < 1:
-                self.rx_win_size = 1
-        else:
-            # print('Increasing window size from %d to %d.'%(self.rx_win_size, self.rx_win_size+1))
-            # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
-            self.rx_win_size += 1
-        # print('')
+        # # This is where we reset win_size to 1/2 due to packet loss.
+        # # print('%d ?= %d, (%d + %d)'%(ack, seq + self.MAX_DATA_SIZE, seq, self.MAX_DATA_SIZE))
+        # # print('\nCONSECUTIVE NACKS: %d'%(self.consecutive_nacks))
+        # if ack != seq + self.MAX_DATA_SIZE:
+        #     self.consecutive_nacks += 1
+        #     # print('Increased consecutive nacks to %d.'%(self.consecutive_nacks))
+        # else:
+        #     self.consecutive_nacks = 0
+        #     # print('Reset consecutive nacks to %d.'%(self.consecutive_nacks))
+        # if self.consecutive_nacks > 3:
+        #     # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
+        #     self.consecutive_nacks = 0
+        #     # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
+        #     self.rx_win_size = int(self.rx_win_size / 2)
+        #     if self.rx_win_size < 1:
+        #         self.rx_win_size = 1
+        # else:
+        #     # print('Increasing window size from %d to %d.'%(self.rx_win_size, self.rx_win_size+1))
+        #     # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
+        #     self.rx_win_size += 1
+        # # print('')
 
         window = self.rx_win_size
 
@@ -350,14 +395,10 @@ class TCPNet:
     def _retransmit(self, timedout):
         ret_pkt = self.last_sent_packet
 
-        if timedout:
-            self.rx_win_size = 1
-            ret_pkt[14:16] = self.rx_win_size.to_bytes(2, 'big')
-            self._udt_send(ret_pkt)
-        else:
-            self.rx_win_size = int(self.rx_win_size / 2)
-            if self.rx_win_size < 1:
-                self.rx_win_size = 1
+        # if timedout:
+        #     self.rx_win_size = 1
+        #     ret_pkt[14:16] = self.rx_win_size.to_bytes(2, 'big')
+        self._udt_send(ret_pkt)
 
 
     #Define rdt_rcv() function: Receive packets 
@@ -366,11 +407,21 @@ class TCPNet:
             force_close = False
             timedout = False
 
+            # Update our log lists.
+            self.logged_time.append(time.time_ns())
+            self.logged_packets_sent.append(self.packets_sent)
+            self.logged_packets_recvd.append(self.packets_recvd)
+            self.logged_packets_corrupted.append(self.packets_corrupted)
+            self.logged_packets_lost.append(self.packets_lost)
+            self.logged_timeout.append(self.timeout_interval)
+            self.logged_winsize.append(self.rx_win_size)
+
             # The main receiving function.
             src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, timestamp, data, force_close, timedout = self._tcp_recv()
             # print(self.whois, 'RECEIVED:', data)
 
             if not timedout:
+                self.packets_recvd += 1
                 pass
                 # print(self.whois, 'just got:', src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, data)
             
@@ -399,6 +450,9 @@ class TCPNet:
             if rx_win_size is not None:
                 self.rx_win_size = rx_win_size
             
+            if (flags == 0):
+                self._handle_winsize(timedout)
+
             # Deals with timeouts via retransmission.
             # if (flags == 0) and (data is not None):
                 # print(checksum, int.from_bytes(self.bit16sum(data), 'big'))
@@ -555,3 +609,17 @@ class TCPNet:
                     bit16 = (data[i] << 8) | (data[i+1]) 
             checksum = (checksum + bit16) & 0xFFFF #Compute 1s complement (addition result AND'd with 0xFFFF mask) to yield final checksum 
         return checksum.to_bytes(2, 'big')
+
+    # def log_initial(self):
+    #     whois = self.whois.replace(' ', '_')
+    #     self.log = open('log_' + whois + '.txt', 'w')
+    #     # self.log.write(self.whois, self.CORR_PROB, self.CORR_TYPE, self.CORR_WHICH)
+
+    # def log_update(self):
+    #     self.log.write(self.whois)
+    #     self.log.write(', ')
+    #     self.log.write(str(self.CORR_PROB))
+    #     # + ', ' + self.CORR_TYPE + ', ' + self.CORR_WHICH + ', ' + self.packets_sent + ', ' + self.packets_recvd + ', ' + self.packets_corrupted + ', ' + self.packets_lost + ', ' + self.rx_win_size + ', ' + self.timeout_interval)
+
+    # def log_final(self):
+    #     self.log.close()

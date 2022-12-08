@@ -18,7 +18,7 @@ def test_instantiation(corr_prob: float, corr_type: str, corr_which: str):
     net = tcpnet.TCPNet('A %d'%(id), 52040, 'localhost', 52041)
     net.set_corruption_probability(corr_prob)
     net.set_corruption_type(corr_type)
-    net.set_corruption_which(corr_which)
+    # net.set_corruption_which(corr_which)
     # print('ID #%d'%(id))
     if net is not None:
         pts += 1

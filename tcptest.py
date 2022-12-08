@@ -35,7 +35,7 @@ from PyQt5 import QtCore, QtWidgets
 # %%
 class TCPTest(QThread):
     SIGNAL_begun = pyqtSignal(int)
-    SIGNAL_complete = pyqtSignal()
+    SIGNAL_complete = pyqtSignal(list, list, list, list, list, list, list, list, list, list, list, list, list, list, list, list, list, list)
     SIGNAL_update = pyqtSignal(bool, bool, bool, int, int)
 
     def __init__(self, parent: QMainWindow):
@@ -55,6 +55,26 @@ class TCPTest(QThread):
         self.updater_done = False
         self.running = False
         self.trial = 0
+
+        self.transfer_number = 0
+        self.transfer_numbers = []
+        self.corr_probs = []
+        self.corr_types = []
+        self.corr_whichs = []
+        self.total_packets_sent_tx = []
+        self.total_packets_sent_rx = []
+        self.total_packets_recvd_tx = []
+        self.total_packets_recvd_rx = []
+        self.total_packets_corrupted_tx = []
+        self.total_packets_corrupted_rx = []
+        self.total_packets_lost_tx = []
+        self.total_packets_lost_rx = []
+        self.logged_timeouts_tx = []
+        self.logged_timeouts_rx = []
+        self.logged_winsizes_tx = []
+        self.logged_winsizes_rx = []
+        self.logged_times_tx = []
+        self.logged_times_rx = []
 
     def __del__(self):
         self.done = True
@@ -92,11 +112,32 @@ class TCPTest(QThread):
                 for which in corr_which:
                     for ii in range(self.c_samples):
                         print('Transferring...')
+                        # print(i, c_type, which)
                         self.transfer_file(self.filename, i/100, c_type, which)
                         self.trial += 1
         print('Complete.')
         self.updater_done = True
-        self.SIGNAL_complete.emit()
+        self.SIGNAL_complete.emit(self.transfer_numbers, self.corr_probs, self.corr_types, self.corr_whichs, self.total_packets_sent_tx, self.total_packets_sent_rx, self.total_packets_recvd_tx, self.total_packets_recvd_rx, self.total_packets_corrupted_tx, self.total_packets_corrupted_rx, self.total_packets_lost_tx, self.total_packets_lost_rx, self.logged_timeouts_tx, self.logged_timeouts_rx, self.logged_winsizes_tx, self.logged_winsizes_rx, self.logged_times_tx, self.logged_times_rx)
+
+        self.transfer_number = 0
+        self.transfer_numbers = []
+        self.corr_probs = []
+        self.corr_types = []
+        self.corr_whichs = []
+        self.total_packets_sent_tx = []
+        self.total_packets_sent_rx = []
+        self.total_packets_recvd_tx = []
+        self.total_packets_recvd_rx = []
+        self.total_packets_corrupted_tx = []
+        self.total_packets_corrupted_rx = []
+        self.total_packets_lost_tx = []
+        self.total_packets_lost_rx = []
+        self.logged_timeouts_tx = []
+        self.logged_timeouts_rx = []
+        self.logged_winsizes_tx = []
+        self.logged_winsizes_rx = []
+        self.logged_times_tx = []
+        self.logged_times_rx = []
 
     def transfer_file(self, filename: str, corr_prob: float, corr_type: str, corr_which: str):
         id = random.randint(10000, 99999)
@@ -130,6 +171,30 @@ class TCPTest(QThread):
                     tov = 0.25
             # print(d)
         self.running = False
+
+        # Collect the profiling data.
+        # print(net1.logged_time)
+
+        self.transfer_number += 1
+        self.transfer_numbers.append(self.transfer_number)
+        print('corr_prob', corr_prob, corr_prob * 100)
+        self.corr_probs.append(corr_prob*100)
+        self.corr_types.append(corr_type)
+        self.corr_whichs.append(corr_which)
+        self.total_packets_sent_tx.append(net1.logged_packets_sent[-1])
+        self.total_packets_sent_rx.append(net2.logged_packets_sent[-1])
+        self.total_packets_recvd_tx.append(net1.logged_packets_recvd[-1])
+        self.total_packets_recvd_rx.append(net2.logged_packets_recvd[-1])
+        self.total_packets_corrupted_tx.append(net1.logged_packets_corrupted[-1])
+        self.total_packets_corrupted_rx.append(net2.logged_packets_corrupted[-1])
+        self.total_packets_lost_tx.append(net1.logged_packets_lost[-1])
+        self.total_packets_lost_rx.append(net2.logged_packets_lost[-1])
+        self.logged_timeouts_tx.append(net1.logged_timeout)
+        self.logged_timeouts_rx.append(net2.logged_timeout)
+        self.logged_winsizes_tx.append(net1.logged_winsize)
+        self.logged_winsizes_rx.append(net2.logged_winsize)
+        self.logged_times_tx.append(net1.logged_time)
+        self.logged_times_rx.append(net2.logged_time)
 
         # print(data)
 

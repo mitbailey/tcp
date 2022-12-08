@@ -104,11 +104,12 @@ class GUI_Main(QMainWindow):
     def begin_transfer(self):
         self.test.tests_bools = [self.data_error_checkbox.isChecked(), self.data_loss_checkbox.isChecked(), self.ack_error_checkbox.isChecked(), self.ack_loss_checkbox.isChecked()]
         self.test.start()
-
-    def complete(self):
+   
+    def complete(self, transfer_numbers, corr_probs, corr_types, corr_which, total_packets_sent_tx, total_packets_sent_rx, total_packets_recvd_tx, total_packets_recvd_rx, total_packets_corrupted_tx, total_packets_corrupted_rx, total_packets_lost_tx, total_packets_lost_rx, logged_timeouts_tx, logged_timeouts_rx, logged_winsizes_tx, logged_winsizes_rx, logged_times_tx, logged_times_rx):
         self.state_label.setText('N/A')
         self.file_progress_bar.setValue(0)
         self.process_progress_bar.setValue(0)
+        self.produce_graphs(transfer_numbers, corr_probs, corr_types, corr_which, total_packets_sent_tx, total_packets_sent_rx, total_packets_recvd_tx, total_packets_recvd_rx, total_packets_corrupted_tx, total_packets_corrupted_rx, total_packets_lost_tx, total_packets_lost_rx, logged_timeouts_tx, logged_timeouts_rx, logged_winsizes_tx, logged_winsizes_rx, logged_times_tx, logged_times_rx)
 
     def begun(self, trials):
         self.trials = trials
@@ -129,11 +130,80 @@ class GUI_Main(QMainWindow):
         else:
             self.state_label.setText('UNKNOWN')
 
-
         self.file_progress_bar.setValue(int((byte/self.filesize)*100))
         self.process_progress_bar.setValue(int( ((trial/self.trials) + ((byte/self.filesize)/self.trials))   *100))
 
-    def produce_graphs(self):
+    def produce_graphs(self, transfer_numbers, corr_probs, corr_types, corr_which, total_packets_sent_tx, total_packets_sent_rx, total_packets_recvd_tx, total_packets_recvd_rx, total_packets_corrupted_tx, total_packets_corrupted_rx, total_packets_lost_tx, total_packets_lost_rx, logged_timeouts_tx, logged_timeouts_rx, logged_winsizes_tx, logged_winsizes_rx, logged_times_tx, logged_times_rx):
+        # Total Packets Sent, Total Packets Recvd vs Corruption   
+        # axA2 = axA1.twinx()
+
+        # axA2.set_ylabel('Line Corruption (%)', color='r')
+
+        # Data Error - de
+        # Data Loss  - dl
+        # Ack Error  - ae
+        # Ack Loss   - al
+        
+        # RECEIVER PLOTS
+        figA = plt.figure()
+        axA1 = plt.axes()
+
+        axA1.axes.set_title('Packets Sent and Received with Data Packet Bit Error')
+        axA1.set_xlabel('Corruption')
+        axA1.set_ylabel('Total Packets')
+        de_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'error' and corr_which[i] == 'send']
+        de_total_packets_sent = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'error' and corr_which[i] == 'send']
+        de_total_packets_recv = [x for i, x in enumerate(total_packets_recvd_tx) if corr_types[i] == 'error' and corr_which[i] == 'send']
+        ae_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'error' and corr_which[i] == 'recv']
+        ae_total_packets_sent = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'error' and corr_which[i] == 'recv']
+        ae_total_packets_recv = [x for i, x in enumerate(total_packets_recvd_rx) if corr_types[i] == 'error' and corr_which[i] == 'recv']
+
+        axA1.scatter(de_corr_probs, de_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Sender')
+        axA1.scatter(de_corr_probs, de_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Sender')
+        axA1.scatter(ae_corr_probs, ae_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Receiver')
+        axA1.scatter(ae_corr_probs, ae_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Receiver')
+        axA1.axes.legend()
+        
+        figB = plt.figure()
+        axB1 = plt.axes()
+
+        axB1.axes.set_title('Packets Sent and Received with Data Packet Loss')
+        axB1.set_xlabel('Corruption')
+        axB1.set_ylabel('Total Packets')
+        de_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        de_total_packets_sent = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        de_total_packets_recv = [x for i, x in enumerate(total_packets_recvd_tx) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        ae_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+        ae_total_packets_sent = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+        ae_total_packets_recv = [x for i, x in enumerate(total_packets_recvd_rx) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+
+        axB1.scatter(de_corr_probs, de_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Sender')
+        axB1.scatter(de_corr_probs, de_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Sender')
+        axB1.scatter(ae_corr_probs, ae_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Receiver')
+        axB1.scatter(ae_corr_probs, ae_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Receiver')
+        axB1.axes.legend()
+
+        for llist in logged_winsizes_rx:
+            fig = plt.figure()
+            ax = plt.axes()
+            ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Window Size')
+
+        for llist in logged_timeouts_tx:
+            fig = plt.figure()
+            ax = plt.axes()
+            ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Timeouts')
+
+        figC = plt.figure()
+        axC1 = plt.axes()
+
+        completion_times = [(x[-1]/1e9) for x in logged_times_rx]
+        # de_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        de_completion_times = [x for i, x in enumerate(completion_times) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+
+        axC1.scatter(de_corr_probs, de_completion_times, marker='o', linestyle='solid', label='Completion Times')
+
+        plt.show()
+        
         pass
 
 if __name__ == '__main__':
