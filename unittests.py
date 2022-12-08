@@ -417,9 +417,9 @@ def test_big_file_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
 
     file.close()
 
-    file = open('rx.bmp', 'wb')
-    file.write(data)
-    file.close()
+    # file = open('rx.bmp', 'wb')
+    # file.write(data)
+    # file.close()
 
     return data == sendable
 
@@ -431,7 +431,7 @@ if __name__ == '__main__':
     for w in range(len(which_list)):
         corr_list = ['error', 'loss']
         for i in range(len(corr_list)):
-            for ii in range(5, 50, 20): # Corruption Amounts
+            for ii in range(0, 50, 20): # Corruption Amounts
                 corruption_prob = ii/100
                 corruption_type = corr_list[i]
                 which = which_list[w]

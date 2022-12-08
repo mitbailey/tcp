@@ -16,7 +16,7 @@ import collections
 import threading
 
 class TCPNet:
-    MAX_DATA_SIZE = 10
+    MAX_DATA_SIZE = 992
     DEFAULT_TIMEOUT = 0.001
     TYPICAL_RTT = 0.125
     TYPICAL_BETA = 0.15
@@ -39,6 +39,7 @@ class TCPNet:
 
     def _setup(self, source_port: int, dest_ip: str, dest_port: int):
         self.teardown_initiated = False
+        self.consecutive_nacks = 0
 
         self.estimated_rtt = TCPNet.TYPICAL_RTT
         self.timeout_interval = TCPNet.DEFAULT_TIMEOUT
@@ -109,7 +110,6 @@ class TCPNet:
             self._setup(self.SOURCE_PORT, self.DEST_IP, self.DEST_PORT)
 
         self.send_data = send_data
-        # self._handshake(0)
 
     def _handshake(self, flags = 0):
         if self.handshake_complete:
@@ -266,6 +266,7 @@ class TCPNet:
         # print(self.whois, 'UDT_SEND: ', packet)
         # print(self.whois, self.last_rxed_seq_num, self.last_rxed_ack_num, self.curr_seq_num, self.curr_ack_num)
         # print(self.whois, 'SENDING:', packet[28:])
+
         try:
             self.udp_sock.sendto(packet, (self.DEST_IP, self.DEST_PORT)) #Send the packet (either corrupted or as-intended) to the defined IP/port number 
         except Exception as e:
@@ -283,19 +284,33 @@ class TCPNet:
         seq = self.curr_seq_num
 
         # This is where we reset win_size to 1/2 due to packet loss.
+        # print('%d ?= %d, (%d + %d)'%(ack, seq + self.MAX_DATA_SIZE, seq, self.MAX_DATA_SIZE))
+        # print('\nCONSECUTIVE NACKS: %d'%(self.consecutive_nacks))
         if ack != seq + self.MAX_DATA_SIZE:
+            self.consecutive_nacks += 1
+            # print('Increased consecutive nacks to %d.'%(self.consecutive_nacks))
+        else:
+            self.consecutive_nacks = 0
+            # print('Reset consecutive nacks to %d.'%(self.consecutive_nacks))
+        if self.consecutive_nacks > 3:
+            # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
+            self.consecutive_nacks = 0
+            # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
             self.rx_win_size = int(self.rx_win_size / 2)
             if self.rx_win_size < 1:
                 self.rx_win_size = 1
         else:
+            # print('Increasing window size from %d to %d.'%(self.rx_win_size, self.rx_win_size+1))
+            # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
             self.rx_win_size += 1
+        # print('')
 
         window = self.rx_win_size
 
         if not self.handshake_complete:
             return
 
-        if self.ack_required:
+        if self.ack_required and self.send_data is None:
             a_seq = 42424
             a_ack = self.curr_ack_num
             a_pkt = self.make_hdr(a_seq, a_ack, checksum=0, flags=0b010000)
@@ -352,6 +367,7 @@ class TCPNet:
             # The main receiving function.
             src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, timestamp, data, force_close, timedout = self._tcp_recv()
             # print(self.whois, 'RECEIVED:', data)
+
             if not timedout:
                 pass
                 # print(self.whois, 'just got:', src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, data)
@@ -421,10 +437,6 @@ class TCPNet:
                         self._handshake(flags)
                 elif flags is not None and flags > 0: # We are the receiver (or not ready to send) and got a flag.
                     self._handshake(flags)
-
-                # if flags is None:
-                #     flags = 0
-                # self._handshake(flags)
 
             elif not self.send_tid_active:
                 self.send_tid_active = True
