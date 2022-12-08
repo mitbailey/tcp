@@ -15,6 +15,8 @@ import time
 import collections
 import threading
 
+# TODO: Write statistics to files and then read the files turning them into graphs in tcptest.py.
+
 class TCPNet:
     MAX_DATA_SIZE = 992
     DEFAULT_TIMEOUT = 0.001

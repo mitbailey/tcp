@@ -12,6 +12,7 @@ import random
 import tcpnet
 import time
 import threading
+import os
 
 # %% PyQt Imports
 from PyQt5 import uic
@@ -35,7 +36,7 @@ from PyQt5 import QtCore, QtWidgets
 class TCPTest(QThread):
     SIGNAL_begun = pyqtSignal(int)
     SIGNAL_complete = pyqtSignal()
-    SIGNAL_update = pyqtSignal(bool, bool, int, int)
+    SIGNAL_update = pyqtSignal(bool, bool, bool, int, int)
 
     def __init__(self, parent: QMainWindow):
         super(TCPTest, self).__init__()
@@ -62,12 +63,19 @@ class TCPTest(QThread):
         while not self.updater_done:
             time.sleep(0.01)
             if self.running:
-                self.SIGNAL_update.emit(self.net_tx.handshake_complete, self.net_rx.teardown_initiated, self.trial, self.net_rx.curr_ack_num)
+                self.SIGNAL_update.emit(self.net_tx.handshake_complete, self.net_rx.teardown_initiated, self.net_rx.done, self.trial, self.net_rx.curr_ack_num)
                 # print(self.net_rx.rx_win_size, self.net_tx.rx_win_size)
                 # print(self.net_rx.curr_ack_num)
                 # print('Updater running.')
 
     def run(self):
+        # First, delete all of the previous files.
+        file_list = os.listdir('.')
+        for filename in file_list:
+            if '_TCPRX_' in filename:
+                if os.path.exists(filename):
+                    os.remove(filename)
+
         self.updater_done = False
         self.updater_tid = threading.Thread(target=self.updater)
         self.updater_tid.start()
@@ -113,10 +121,13 @@ class TCPTest(QThread):
         # print('Waiting for data...')
         data, to = net2.pop_data()
         to = False
+        tov = 2.5
         while to is False:
-            d, to = net2.pop_data(timeout=2.5)
+            d, to = net2.pop_data(timeout=tov)
             if d is not None:
                 data += d
+                if data == sendable:
+                    tov = 0.25
             # print(d)
         self.running = False
 
@@ -143,5 +154,10 @@ class TCPTest(QThread):
 
         self.net_tx = None
         self.net_rx = None
+
+        # This is where the received data is written to files.
+        file = open(filename + '_TCPRX_' + str(time.time_ns()) + '.bmp', 'wb')
+        file.write(data)
+        file.close()
 
         return data == sendable

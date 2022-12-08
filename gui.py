@@ -113,12 +113,14 @@ class GUI_Main(QMainWindow):
     def begun(self, trials):
         self.trials = trials
 
-    def update(self, handshake_complete, teardown_initiated, trial, byte):
+    def update(self, handshake_complete, teardown_initiated, done, trial, byte):
         # print('byte, filesize:', byte, self.filesize)
         # print('prog:', int((byte/self.filesize)*100))
         # print('prog:', byte/self.filesize)
 
-        if teardown_initiated:
+        if done:
+            self.state_label.setText('IDLE')
+        elif teardown_initiated:
             self.state_label.setText('TEARDOWN')
         elif not handshake_complete:
             self.state_label.setText('HANDSHAKE')
