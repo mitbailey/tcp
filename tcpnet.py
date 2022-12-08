@@ -18,6 +18,8 @@ import threading
 class TCPNet:
     MAX_DATA_SIZE = 10
     DEFAULT_TIMEOUT = 0.001
+    TYPICAL_RTT = 0.125
+    TYPICAL_BETA = 0.15
 
     def __init__(self, ID: str, source_port: int, dest_ip: str, dest_port: int):
         self.CORR_PROB = 0
@@ -37,6 +39,10 @@ class TCPNet:
 
     def _setup(self, source_port: int, dest_ip: str, dest_port: int):
         self.teardown_initiated = False
+
+        self.estimated_rtt = TCPNet.TYPICAL_RTT
+        self.timeout_interval = TCPNet.DEFAULT_TIMEOUT
+        self.dev_rtt = TCPNet.TYPICAL_BETA
 
         self.sent_syn = False
         self.sent_syn_ack = False
@@ -238,7 +244,7 @@ class TCPNet:
         # print('checksum', type(checksum), checksum)
         # print('urg ptr', type(urg_ptr), urg_ptr)
 
-        header: bytearray = bytearray(self.SOURCE_PORT.to_bytes(2, 'big') + self.DEST_PORT.to_bytes(2, 'big') + seq_num.to_bytes(4, 'big') + ack_num.to_bytes(4, 'big') + hdr_len.to_bytes(1, 'big') + flags.to_bytes(1, 'big') + self.rx_win_size.to_bytes(2, 'big') + checksum.to_bytes(2, 'big') + urg_ptr.to_bytes(2, 'big'))
+        header: bytearray = bytearray(self.SOURCE_PORT.to_bytes(2, 'big') + self.DEST_PORT.to_bytes(2, 'big') + seq_num.to_bytes(4, 'big') + ack_num.to_bytes(4, 'big') + hdr_len.to_bytes(1, 'big') + flags.to_bytes(1, 'big') + self.rx_win_size.to_bytes(2, 'big') + checksum.to_bytes(2, 'big') + urg_ptr.to_bytes(2, 'big') + time.time_ns().to_bytes(8, 'big'))
 
         return header
 
@@ -248,18 +254,26 @@ class TCPNet:
 
         self.last_sent_packet = packet
 
-        if (len(packet) > 25) and (((self.CORR_WHICH == 'send') and (self.send_data is not None)) or ((self.CORR_WHICH == 'recv') and (self.send_data is None))):
+        if (len(packet) > 35) and (((self.CORR_WHICH == 'send') and (self.send_data is not None)) or ((self.CORR_WHICH == 'recv') and (self.send_data is None))):
             if random.random() < self.CORR_PROB:
                 if self.CORR_TYPE == 'loss':
                     # print(self.whois, 'CORRUPTION: Packet lost!', self.last_rxed_seq_num, self.last_rxed_ack_num)
                     return 1
                 if self.CORR_TYPE == 'error':
                     # print(self.whois, 'CORRUPTION: Packet error!', self.last_rxed_seq_num, self.last_rxed_ack_num, self.curr_seq_num, self.curr_ack_num)
-                    packet[25] = 42
+                    packet[35] = 42
 
         # print(self.whois, 'UDT_SEND: ', packet)
         # print(self.whois, self.last_rxed_seq_num, self.last_rxed_ack_num, self.curr_seq_num, self.curr_ack_num)
-        self.udp_sock.sendto(packet, (self.DEST_IP, self.DEST_PORT)) #Send the packet (either corrupted or as-intended) to the defined IP/port number 
+        # print(self.whois, 'SENDING:', packet[28:])
+        try:
+            self.udp_sock.sendto(packet, (self.DEST_IP, self.DEST_PORT)) #Send the packet (either corrupted or as-intended) to the defined IP/port number 
+        except Exception as e:
+            print(str(e))
+            print('self.done', self.done)
+            print('self.all_stop', self.all_stop)
+            print('The socket is', self.udp_sock, 'and is type', type(self.udp_sock))
+            input('Press ENTER to continue...')
         return 1
 
     def _tcp_send_thread(self):
@@ -336,8 +350,8 @@ class TCPNet:
             timedout = False
 
             # The main receiving function.
-            src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, data, force_close, timedout = self._tcp_recv()
-            
+            src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, timestamp, data, force_close, timedout = self._tcp_recv()
+            # print(self.whois, 'RECEIVED:', data)
             if not timedout:
                 pass
                 # print(self.whois, 'just got:', src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, data)
@@ -350,9 +364,19 @@ class TCPNet:
                 break
             
             # Accounts for accidental direct loopback (highly unlikely).
-            if dest_port == self.DEST_PORT:
+            if dest_port == self.DEST_PORT: # Somehow not for us.
                 # print(self.whois, 'Ignored!')
                 continue
+            
+            # Calculates the updated timeout based on RTT.
+            if timestamp is not None:
+                sample_rtt = (time.time_ns() - timestamp) / 1e9
+                self.estimated_rtt = (1 - TCPNet.TYPICAL_RTT) * self.estimated_rtt + TCPNet.TYPICAL_RTT * sample_rtt
+                self.dev_rtt = (1 - TCPNet.TYPICAL_BETA) * self.dev_rtt + TCPNet.TYPICAL_BETA * abs(sample_rtt - self.estimated_rtt)
+                self.timeout_interval = self.estimated_rtt + 4 * self.dev_rtt
+                # print('sample_rtt:', sample_rtt)
+                # print('TO: %f s'%(self.timeout_interval))
+                self.set_timeout(self.timeout_interval)
 
             if rx_win_size is not None:
                 self.rx_win_size = rx_win_size
@@ -366,6 +390,8 @@ class TCPNet:
                     self._retransmit(timedout)
                 if checksum != self.bit16sum(data):
                     continue
+
+            # TODO: Read the timestamp, compare to now, and adjust the timeout accordingly.
 
             if flags is not None and flags == 1:
                 # Received FIN!
@@ -448,6 +474,7 @@ class TCPNet:
         rx_win_size = None
         checksum = None
         urg_ptr = None
+        timestamp = None
         data = None
 
         force_close = False
@@ -475,12 +502,13 @@ class TCPNet:
             rx_win_size = int.from_bytes(rcv_pkt[14:16], 'big')
             checksum = int.from_bytes(rcv_pkt[16:18], 'big')
             urg_ptr = int.from_bytes(rcv_pkt[18:20], 'big')
-            data = rcv_pkt[20:]
+            timestamp = int.from_bytes(rcv_pkt[20:28], 'big')
+            data = rcv_pkt[28:]
             # print(data)
             # print(rcv_pkt[20:])
             # print(rcv_pkt[15:])
 
-        return src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, data, force_close, timedout
+        return src_port, dest_port, seq_num, ack_num, hdr_len, flags, rx_win_size, checksum, urg_ptr, timestamp, data, force_close, timedout
 
     #Define is_valid() function: Checks to ensure checksum/data is valid. If checksum/data is valid, returns a True flag. If checksum/data is invalid, returns a False flag. 
     def is_valid(self, packet):

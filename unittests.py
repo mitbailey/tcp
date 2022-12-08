@@ -230,7 +230,7 @@ def test_many_packet_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     data, to = net2.pop_data()
     to = False
     while to is False:
-        d, to = net2.pop_data(timeout=0.5)
+        d, to = net2.pop_data(timeout=2.5)
         if d is not None:
             data += d
 
@@ -286,7 +286,7 @@ def test_many_packet_multi_send_tx_rx(corr_prob: float, corr_type: str, corr_whi
     data, to = net2.pop_data()
     to = False
     while to is False:
-        d, to = net2.pop_data(timeout=0.5)
+        d, to = net2.pop_data(timeout=2.5)
         if d is not None:
             data += d
 
@@ -314,7 +314,7 @@ def test_many_packet_multi_send_tx_rx(corr_prob: float, corr_type: str, corr_whi
     dataB, to = net2.pop_data()
     to = False
     while to is False:
-        d, to = net2.pop_data(timeout=0.5)
+        d, to = net2.pop_data(timeout=2.5)
         if d is not None:
             dataB += d
 
@@ -353,7 +353,7 @@ def test_file_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     data, to = fnet2.pop_data()
     to = False
     while to is False:
-        d, to = fnet2.pop_data(timeout=0.5)
+        d, to = fnet2.pop_data(timeout=2.5)
         if d is not None:
             data += d
         # print(d)
@@ -395,12 +395,15 @@ def test_big_file_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     data, to = net2.pop_data()
     to = False
     while to is False:
-        d, to = net2.pop_data(timeout=0.5)
+        d, to = net2.pop_data(timeout=2.5)
         if d is not None:
             data += d
         # print(d)
 
     # print(data)
+
+    print(net1.done)
+    print(net2.done)
 
     net1.all_stop = True
     net2.all_stop = True
@@ -412,6 +415,10 @@ def test_big_file_tx_rx(corr_prob: float, corr_type: str, corr_which: str):
     # print('\n\n\nSENDABLE')
     # print(sendable)
 
+    file.close()
+
+    file = open('rx.bmp', 'wb')
+    file.write(data)
     file.close()
 
     return data == sendable
@@ -434,10 +441,10 @@ if __name__ == '__main__':
     # which = 'send'
 
                 max_data_size = 5
-                while max_data_size < 1000:
+                while max_data_size < 992:
                     max_data_size *= 2
-                    if max_data_size > 1000:
-                        max_data_size = 1000
+                    if max_data_size > 992:
+                        max_data_size = 992
 
                 tcpnet.TCPNet.MAX_DATA_SIZE = max_data_size
 
@@ -453,6 +460,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
                 print('Single Byte:')
@@ -462,6 +470,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
                 print('Multi-Byte:')
@@ -471,6 +480,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
                 print('Multi-Byte Delay:')
@@ -480,6 +490,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
                 print('Single-Packet:')
@@ -489,6 +500,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
                 print('Multi-Packet:')
@@ -498,6 +510,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
                 print('Many Packet:')
@@ -507,6 +520,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
                 print('Many Packet Multi-Send:')
@@ -516,6 +530,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
                 print('File:')
@@ -525,6 +540,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
                 print('Big File:')
@@ -534,6 +550,7 @@ if __name__ == '__main__':
                 else:
                     print('FAILURE')
                     failures += 1 
+                    input('Press ENTER to continue...')
                 print('')
 
     print('Tests complete (%d passes, %d fails).'%(successes, failures))
