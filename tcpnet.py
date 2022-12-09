@@ -17,8 +17,6 @@ import threading
 
 # %%
 
-# TODO: Write statistics to files and then read the files turning them into graphs in tcptest.py.
-
 class TCPNet():
     MAX_DATA_SIZE = 992
     DEFAULT_TIMEOUT = 0.001
@@ -254,17 +252,6 @@ class TCPNet():
         hdr_len = 0 # Header length = Header length field value x 4 bytes
         urg_ptr = 0
 
-        # print('dest ip', type(self.DEST_IP), self.DEST_IP)
-        # print('source port', type(self.SOURCE_PORT), self.SOURCE_PORT)
-        # print('dest port', type(self.DEST_PORT), self.DEST_PORT)
-        # print('seq num', type(seq_num), seq_num)
-        # print('ack num', type(ack_num), ack_num)
-        # print('hdr len', type(hdr_len), hdr_len)
-        # print('flags', type(flags), flags)
-        # print('rx win size', type(self.rx_win_size), self.rx_win_size)
-        # print('checksum', type(checksum), checksum)
-        # print('urg ptr', type(urg_ptr), urg_ptr)
-
         header: bytearray = bytearray(self.SOURCE_PORT.to_bytes(2, 'big') + self.DEST_PORT.to_bytes(2, 'big') + seq_num.to_bytes(4, 'big') + ack_num.to_bytes(4, 'big') + hdr_len.to_bytes(1, 'big') + flags.to_bytes(1, 'big') + self.rx_win_size.to_bytes(2, 'big') + checksum.to_bytes(2, 'big') + urg_ptr.to_bytes(2, 'big') + time.time_ns().to_bytes(8, 'big'))
 
         return header
@@ -329,28 +316,6 @@ class TCPNet():
         sent_pkts = 0
         ack = self.last_rxed_ack_num # Basically the next requested byte.
         seq = self.curr_seq_num
-
-        # # This is where we reset win_size to 1/2 due to packet loss.
-        # # print('%d ?= %d, (%d + %d)'%(ack, seq + self.MAX_DATA_SIZE, seq, self.MAX_DATA_SIZE))
-        # # print('\nCONSECUTIVE NACKS: %d'%(self.consecutive_nacks))
-        # if ack != seq + self.MAX_DATA_SIZE:
-        #     self.consecutive_nacks += 1
-        #     # print('Increased consecutive nacks to %d.'%(self.consecutive_nacks))
-        # else:
-        #     self.consecutive_nacks = 0
-        #     # print('Reset consecutive nacks to %d.'%(self.consecutive_nacks))
-        # if self.consecutive_nacks > 3:
-        #     # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
-        #     self.consecutive_nacks = 0
-        #     # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
-        #     self.rx_win_size = int(self.rx_win_size / 2)
-        #     if self.rx_win_size < 1:
-        #         self.rx_win_size = 1
-        # else:
-        #     # print('Increasing window size from %d to %d.'%(self.rx_win_size, self.rx_win_size+1))
-        #     # print('Consecutive nacks: %d.'%(self.consecutive_nacks))
-        #     self.rx_win_size += 1
-        # # print('')
 
         window = self.rx_win_size
 

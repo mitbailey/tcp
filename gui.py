@@ -214,15 +214,15 @@ class GUI_Main(QMainWindow):
 
         # /////////////////////////
 
-        # for llist in logged_winsizes_rx:
-        #     fig = plt.figure()
-        #     ax = plt.axes()
-        #     ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Window Size')
+        for llist in logged_winsizes_rx:
+            fig = plt.figure()
+            ax = plt.axes()
+            ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Window Size')
 
-        # for llist in logged_timeouts_tx:
-        #     fig = plt.figure()
-        #     ax = plt.axes()
-        #     ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Timeouts')
+        for llist in logged_timeouts_tx:
+            fig = plt.figure()
+            ax = plt.axes()
+            ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Timeouts')
         
         # /////////////////////////
         figC = plt.figure()
@@ -231,7 +231,7 @@ class GUI_Main(QMainWindow):
         axC1.axes.set_title('Completion Time')
         axC1.set_xlabel('Corruption (%)')
         axC1.set_ylabel('Time (s)')
-        completion_times = [(x[-1]/1e9) for x in logged_times_rx]
+        completion_times = [((x[-1]-x[0])/1e9) for x in logged_times_rx]
         print(completion_times)
         de_completion_times = [x for i, x in enumerate(completion_times) if corr_types[i] == 'error' and corr_which[i] == 'send']
         dl_completion_times = [x for i, x in enumerate(completion_times) if corr_types[i] == 'loss' and corr_which[i] == 'send']
