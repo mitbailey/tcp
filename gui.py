@@ -145,62 +145,103 @@ class GUI_Main(QMainWindow):
         # Ack Loss   - al
         
         # RECEIVER PLOTS
-        figA = plt.figure()
-        axA1 = plt.axes()
-
-        axA1.axes.set_title('Packets Sent and Received with Data Packet Bit Error')
-        axA1.set_xlabel('Corruption')
-        axA1.set_ylabel('Total Packets')
-        de_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'error' and corr_which[i] == 'send']
-        de_total_packets_sent = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'error' and corr_which[i] == 'send']
-        de_total_packets_recv = [x for i, x in enumerate(total_packets_recvd_tx) if corr_types[i] == 'error' and corr_which[i] == 'send']
-        ae_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'error' and corr_which[i] == 'recv']
-        ae_total_packets_sent = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'error' and corr_which[i] == 'recv']
-        ae_total_packets_recv = [x for i, x in enumerate(total_packets_recvd_rx) if corr_types[i] == 'error' and corr_which[i] == 'recv']
-
-        axA1.scatter(de_corr_probs, de_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Sender')
-        axA1.scatter(de_corr_probs, de_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Sender')
-        axA1.scatter(ae_corr_probs, ae_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Receiver')
-        axA1.scatter(ae_corr_probs, ae_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Receiver')
-        axA1.axes.legend()
+        # /////////////////////////
+        fig, axs = plt.subplots(2, 2)
         
-        figB = plt.figure()
-        axB1 = plt.axes()
+        # /////////////////////////
+        # 0,0 - Data Packet Bit Error
+        axs[0,0].set_title('Packets Sent and Received: Data Packet Bit Error')
+        axs[0,0].set_xlabel('Corruption (%)')
+        axs[0,0].set_ylabel('Packets')
+        de_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'error' and corr_which[i] == 'send']
+        sde_total_packets_sent = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'error' and corr_which[i] == 'send']
+        sde_total_packets_recv = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'error' and corr_which[i] == 'send']
+        rde_total_packets_sent = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'error' and corr_which[i] == 'send']
+        rde_total_packets_recv = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'error' and corr_which[i] == 'send']
+        axs[0,0].scatter(de_corr_probs, sde_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Sender')
+        axs[0,0].scatter(de_corr_probs, sde_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Sender')
+        axs[0,0].scatter(de_corr_probs, rde_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Receiver')
+        axs[0,0].scatter(de_corr_probs, rde_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Receiver')
+        axs[0,0].axes.legend()
+        
+        # /////////////////////////
+        # 0,1 - Data Packet Loss
+        axs[1,0].set_title('Packets Sent and Received: Data Packet Loss')
+        axs[1,0].set_xlabel('Corruption (%)')
+        axs[1,0].set_ylabel('Packets')
+        dl_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        sdl_total_packets_sent = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        sdl_total_packets_recv = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        rdl_total_packets_sent = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        rdl_total_packets_recv = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        axs[1,0].scatter(de_corr_probs, sdl_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Sender')
+        axs[1,0].scatter(de_corr_probs, sdl_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Sender')
+        axs[1,0].scatter(de_corr_probs, rdl_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Receiver')
+        axs[1,0].scatter(de_corr_probs, rdl_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Receiver')
+        axs[1,0].axes.legend()
+        
+        # /////////////////////////
+        # 1,0 - Ack Packet Bit Error
+        axs[0,1].set_title('Packets Sent and Received: Ack Packet Bit Error')
+        axs[0,1].set_xlabel('Corruption (%)')
+        axs[0,1].set_ylabel('Packets')
+        ae_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'error' and corr_which[i] == 'recv']
+        sae_total_packets_sent = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'error' and corr_which[i] == 'recv']
+        sae_total_packets_recv = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'error' and corr_which[i] == 'recv']
+        rae_total_packets_sent = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'error' and corr_which[i] == 'recv']
+        rae_total_packets_recv = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'error' and corr_which[i] == 'recv']
+        axs[0,1].scatter(de_corr_probs, sae_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Sender')
+        axs[0,1].scatter(de_corr_probs, sae_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Sender')
+        axs[0,1].scatter(de_corr_probs, rae_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Receiver')
+        axs[0,1].scatter(de_corr_probs, rae_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Receiver')
+        axs[0,1].axes.legend()
 
-        axB1.axes.set_title('Packets Sent and Received with Data Packet Loss')
-        axB1.set_xlabel('Corruption')
-        axB1.set_ylabel('Total Packets')
-        de_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'loss' and corr_which[i] == 'send']
-        de_total_packets_sent = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'loss' and corr_which[i] == 'send']
-        de_total_packets_recv = [x for i, x in enumerate(total_packets_recvd_tx) if corr_types[i] == 'loss' and corr_which[i] == 'send']
-        ae_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
-        ae_total_packets_sent = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
-        ae_total_packets_recv = [x for i, x in enumerate(total_packets_recvd_rx) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+        # /////////////////////////
+        # 1,1 - Ack Packet Loss
+        axs[1,1].set_title('Packets Sent and Received: Ack Packet Loss')
+        axs[1,1].set_xlabel('Corruption (%)')
+        axs[1,1].set_ylabel('Packets')
+        al_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+        sal_total_packets_sent = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+        sal_total_packets_recv = [x for i, x in enumerate(total_packets_sent_tx) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+        ral_total_packets_sent = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+        ral_total_packets_recv = [x for i, x in enumerate(total_packets_sent_rx) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+        axs[1,1].scatter(de_corr_probs, sal_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Sender')
+        axs[1,1].scatter(de_corr_probs, sal_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Sender')
+        axs[1,1].scatter(de_corr_probs, ral_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Receiver')
+        axs[1,1].scatter(de_corr_probs, ral_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Receiver')
+        axs[1,1].axes.legend()
 
-        axB1.scatter(de_corr_probs, de_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Sender')
-        axB1.scatter(de_corr_probs, de_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Sender')
-        axB1.scatter(ae_corr_probs, ae_total_packets_sent, marker='>', linestyle='solid', label='Packets Sent by Receiver')
-        axB1.scatter(ae_corr_probs, ae_total_packets_recv, marker='<', linestyle='solid', label='Packets Received by Receiver')
-        axB1.axes.legend()
+        # /////////////////////////
 
-        for llist in logged_winsizes_rx:
-            fig = plt.figure()
-            ax = plt.axes()
-            ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Window Size')
+        # for llist in logged_winsizes_rx:
+        #     fig = plt.figure()
+        #     ax = plt.axes()
+        #     ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Window Size')
 
-        for llist in logged_timeouts_tx:
-            fig = plt.figure()
-            ax = plt.axes()
-            ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Timeouts')
-
+        # for llist in logged_timeouts_tx:
+        #     fig = plt.figure()
+        #     ax = plt.axes()
+        #     ax.plot(range(len(llist)), llist, marker='.', linestyle='solid', label='Timeouts')
+        
+        # /////////////////////////
         figC = plt.figure()
-        axC1 = plt.axes()
+        axC1 = plt.axes() 
 
+        axC1.axes.set_title('Completion Time')
+        axC1.set_xlabel('Corruption (%)')
+        axC1.set_ylabel('Time (s)')
         completion_times = [(x[-1]/1e9) for x in logged_times_rx]
-        # de_corr_probs = [x for i, x in enumerate(corr_probs) if corr_types[i] == 'loss' and corr_which[i] == 'send']
-        de_completion_times = [x for i, x in enumerate(completion_times) if corr_types[i] == 'loss' and corr_which[i] == 'send']
-
-        axC1.scatter(de_corr_probs, de_completion_times, marker='o', linestyle='solid', label='Completion Times')
+        print(completion_times)
+        de_completion_times = [x for i, x in enumerate(completion_times) if corr_types[i] == 'error' and corr_which[i] == 'send']
+        dl_completion_times = [x for i, x in enumerate(completion_times) if corr_types[i] == 'loss' and corr_which[i] == 'send']
+        ae_completion_times = [x for i, x in enumerate(completion_times) if corr_types[i] == 'error' and corr_which[i] == 'recv']
+        al_completion_times = [x for i, x in enumerate(completion_times) if corr_types[i] == 'loss' and corr_which[i] == 'recv']
+        axC1.scatter(de_corr_probs, de_completion_times, marker='o', linestyle='solid', label='Data Packet Error')
+        axC1.scatter(dl_corr_probs, dl_completion_times, marker='o', linestyle='solid', label='Data Packet Loss')
+        axC1.scatter(ae_corr_probs, ae_completion_times, marker='o', linestyle='solid', label='Ack Packet Error')
+        axC1.scatter(al_corr_probs, al_completion_times, marker='o', linestyle='solid', label='Ack Packet Loss')
+        axC1.axes.legend()
 
         plt.show()
         
